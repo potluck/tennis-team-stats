@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 interface Player {
   id: number;
@@ -28,7 +28,6 @@ export default function MatchResultInput() {
   const [pos, setPos] = useState<number | "">(1);
   const [player1, setPlayer1] = useState<number | "">("");
   const [player2, setPlayer2] = useState<number | "">("");
-  const [result, setResult] = useState<string>("win");
   const [set1OurScore, setSet1OurScore] = useState<number | "">("");
   const [set1TheirScore, setSet1TheirScore] = useState<number | "">("");
   const [set2OurScore, setSet2OurScore] = useState<number | "">("");
@@ -58,8 +57,8 @@ export default function MatchResultInput() {
     ];
 
     return validCombinations
-      .filter(([a, b]) => b === partnerScore)
-      .map(([a, b]) => a);
+      .filter(([, b]) => b === partnerScore)
+      .map(([a]) => a);
   };
 
   const getValidScoresForThirdSet = (partnerScore: number | ""): number[] => {
@@ -110,62 +109,68 @@ export default function MatchResultInput() {
   };
 
   // Function to determine set winner: 0 = no winner (incomplete), 1 = we won, 2 = they won, 3 = tie
-  const getSetWinner = (
-    ourScore: number | "",
-    theirScore: number | ""
-  ): number => {
-    if (ourScore === "" || theirScore === "") return 0;
+  const getSetWinner = useCallback(
+    (ourScore: number | "", theirScore: number | ""): number => {
+      if (ourScore === "" || theirScore === "") return 0;
 
-    // Check third set scores first (super tiebreak)
-    if (ourScore === 1 && theirScore === 0) return 1; // We win third set
-    if (ourScore === 0 && theirScore === 1) return 2; // They win third set
-    if (ourScore === 1 && theirScore === 1) return 3; // Tie in third set
+      // Check third set scores first (super tiebreak)
+      if (ourScore === 1 && theirScore === 0) return 1; // We win third set
+      if (ourScore === 0 && theirScore === 1) return 2; // They win third set
+      if (ourScore === 1 && theirScore === 1) return 3; // Tie in third set
 
-    // Check all combinations where we win (regular sets)
-    const weWinCombinations = [
-      [6, 0],
-      [6, 1],
-      [6, 2],
-      [6, 3],
-      [6, 4],
-      [7, 5],
-      [7, 6],
-    ];
+      // Check all combinations where we win (regular sets)
+      const weWinCombinations = [
+        [6, 0],
+        [6, 1],
+        [6, 2],
+        [6, 3],
+        [6, 4],
+        [7, 5],
+        [7, 6],
+      ];
 
-    if (
-      weWinCombinations.some(([a, b]) => a === ourScore && b === theirScore)
-    ) {
-      return 1;
-    }
+      if (
+        weWinCombinations.some(([a, b]) => a === ourScore && b === theirScore)
+      ) {
+        return 1;
+      }
 
-    // Check all combinations where they win (regular sets)
-    const theyWinCombinations = [
-      [0, 6],
-      [1, 6],
-      [2, 6],
-      [3, 6],
-      [4, 6],
-      [5, 7],
-      [6, 7],
-    ];
+      // Check all combinations where they win (regular sets)
+      const theyWinCombinations = [
+        [0, 6],
+        [1, 6],
+        [2, 6],
+        [3, 6],
+        [4, 6],
+        [5, 7],
+        [6, 7],
+      ];
 
-    if (
-      theyWinCombinations.some(([a, b]) => a === ourScore && b === theirScore)
-    ) {
-      return 2;
-    }
+      if (
+        theyWinCombinations.some(([a, b]) => a === ourScore && b === theirScore)
+      ) {
+        return 2;
+      }
 
-    return 0; // No winner or invalid combination
-  };
+      return 0; // No winner or invalid combination
+    },
+    []
+  );
 
   // Check if third set should be hidden (same team won first two sets)
-  const shouldHideThirdSet = (): boolean => {
+  const shouldHideThirdSet = useCallback((): boolean => {
     const set1Winner = getSetWinner(set1OurScore, set1TheirScore);
     const set2Winner = getSetWinner(set2OurScore, set2TheirScore);
 
     // Hide if both sets are complete and same team won both
     return set1Winner !== 0 && set2Winner !== 0 && set1Winner === set2Winner;
-  };
+  }, [
+    set1OurScore,
+    set1TheirScore,
+    set2OurScore,
+    set2TheirScore,
+    getSetWinner,
+  ]);
 
   // Determine overall match result based on sets won
   const getMatchResult = (): string => {
@@ -199,7 +204,7 @@ export default function MatchResultInput() {
     if (theirSetsWon > ourSetsWon) return "loss";
 
     // If we have set scores but no clear winner yet, return current manual result
-    return result;
+    return "win"; // Default to win if no clear winner
   };
 
   // Check if result should be automatically determined
@@ -294,7 +299,13 @@ export default function MatchResultInput() {
       setSet3OurScore("");
       setSet3TheirScore("");
     }
-  }, [set1OurScore, set1TheirScore, set2OurScore, set2TheirScore]);
+  }, [
+    set1OurScore,
+    set1TheirScore,
+    set2OurScore,
+    set2TheirScore,
+    shouldHideThirdSet,
+  ]);
 
   // Score change handlers with validation and auto-completion
   const handleSet1OurScoreChange = (newScore: number | "") => {
