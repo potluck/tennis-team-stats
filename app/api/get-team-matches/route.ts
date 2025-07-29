@@ -5,6 +5,7 @@ export async function GET() {
   try {
     const result = await sql`
             SELECT * FROM team_matches
+            ORDER BY match_date DESC
         `;
     return NextResponse.json(result.rows);
   } catch (error) {
