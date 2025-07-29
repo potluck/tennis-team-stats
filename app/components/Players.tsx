@@ -34,39 +34,39 @@ export default function Players() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="bg-background text-foreground rounded-lg shadow-md p-6">
         <h2 className="text-2xl font-semibold mb-4">Players</h2>
-        <p className="text-gray-600">Loading players...</p>
+        <p className="text-muted-foreground">Loading players...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="bg-background text-foreground rounded-lg shadow-md p-6">
         <h2 className="text-2xl font-semibold mb-4">Players</h2>
-        <p className="text-red-600">Error: {error}</p>
+        <p className="text-destructive">Error: {error}</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
+    <div className="bg-background text-foreground rounded-lg shadow-md p-6">
       <h2 className="text-2xl font-semibold mb-4">Players</h2>
       {players.length === 0 ? (
-        <p className="text-gray-600">No players found.</p>
+        <p className="text-muted-foreground">No players found.</p>
       ) : (
         <div className="space-y-3">
           {players.map((player) => (
             <div
               key={player.id}
-              className="border border-gray-200 rounded-md p-4 hover:shadow-sm transition-shadow"
+              className="border border-input rounded-md p-4 hover:bg-accent/5 transition-colors"
             >
-              <h3 className="text-lg font-medium text-gray-900">
+              <h3 className="text-lg font-medium">
                 {player.name}
               </h3>
-              <p className="text-sm text-gray-500">ID: {player.id}</p>
-              <p className="text-sm text-gray-500">Team ID: {player.team_id}</p>
+              <p className="text-sm text-muted-foreground">ID: {player.id}</p>
+              <p className="text-sm text-muted-foreground">Team ID: {player.team_id}</p>
             </div>
           ))}
         </div>

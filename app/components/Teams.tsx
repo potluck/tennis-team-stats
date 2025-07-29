@@ -33,36 +33,36 @@ export default function Teams() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="bg-background text-foreground rounded-lg shadow-md p-6">
         <h2 className="text-2xl font-semibold mb-4">Teams</h2>
-        <p className="text-gray-600">Loading teams...</p>
+        <p className="text-muted-foreground">Loading teams...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="bg-background text-foreground rounded-lg shadow-md p-6">
         <h2 className="text-2xl font-semibold mb-4">Teams</h2>
-        <p className="text-red-600">Error: {error}</p>
+        <p className="text-destructive">Error: {error}</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
+    <div className="bg-background text-foreground rounded-lg shadow-md p-6">
       <h2 className="text-2xl font-semibold mb-4">Teams</h2>
       {teams.length === 0 ? (
-        <p className="text-gray-600">No teams found.</p>
+        <p className="text-muted-foreground">No teams found.</p>
       ) : (
         <div className="space-y-3">
           {teams.map((team) => (
             <div
               key={team.id}
-              className="border border-gray-200 rounded-md p-4 hover:shadow-sm transition-shadow"
+              className="border border-input rounded-md p-4 hover:bg-accent/5 transition-colors"
             >
-              <h3 className="text-lg font-medium text-gray-900">{team.name}</h3>
-              <p className="text-sm text-gray-500">ID: {team.id}</p>
+              <h3 className="text-lg font-medium">{team.name}</h3>
+              <p className="text-sm text-muted-foreground">ID: {team.id}</p>
             </div>
           ))}
         </div>

@@ -177,18 +177,18 @@ export default function PlayerStatistics() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="bg-background text-foreground rounded-lg shadow-md p-6">
         <h2 className="text-2xl font-semibold mb-4">Player Statistics</h2>
-        <p className="text-gray-600">Loading...</p>
+        <p className="text-muted-foreground">Loading...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="bg-background text-foreground rounded-lg shadow-md p-6">
         <h2 className="text-2xl font-semibold mb-4">Player Statistics</h2>
-        <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+        <div className="p-3 bg-destructive/10 border border-destructive text-destructive rounded">
           {error}
         </div>
       </div>
@@ -196,72 +196,71 @@ export default function PlayerStatistics() {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <h2 className="text-2xl font-semibold mb-4">Player Statistics</h2>
+    <div className="bg-background text-foreground rounded-lg shadow-md p-6">
+      <h2 className="text-2xl font-semibold mb-6">Player Statistics</h2>
 
       {playerStats.length === 0 ? (
-        <p className="text-gray-600">No match results found.</p>
+        <p className="text-muted-foreground">No match results found.</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full table-auto">
+        <div className="overflow-x-auto rounded-lg border border-border">
+          <table className="min-w-full divide-y divide-border">
             <thead>
-              <tr className="bg-gray-50">
-                <th className="px-4 py-2 text-left text-sm font-medium text-gray-900">
+              <tr className="bg-secondary">
+                <th scope="col" className="px-6 py-4 text-left text-sm font-semibold">
                   Player
                 </th>
-                <th className="px-4 py-2 text-center text-sm font-medium text-gray-900">
+                <th scope="col" className="px-6 py-4 text-center text-sm font-semibold">
                   Matches
                 </th>
-                <th className="px-4 py-2 text-center text-sm font-medium text-gray-900">
+                <th scope="col" className="px-6 py-4 text-center text-sm font-semibold">
                   W-L-T
                 </th>
-                <th className="px-4 py-2 text-center text-sm font-medium text-gray-900">
+                <th scope="col" className="px-6 py-4 text-center text-sm font-semibold">
                   Win %
                 </th>
-                <th className="px-4 py-2 text-center text-sm font-medium text-gray-900">
+                <th scope="col" className="px-6 py-4 text-center text-sm font-semibold">
                   Singles
                 </th>
-                <th className="px-4 py-2 text-center text-sm font-medium text-gray-900">
+                <th scope="col" className="px-6 py-4 text-center text-sm font-semibold">
                   Doubles
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y divide-border">
               {playerStats.map((player) => (
-                <tr key={player.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-2 text-sm font-medium text-gray-900">
+                <tr
+                  key={player.id}
+                  className="hover:bg-secondary/50 transition-colors"
+                >
+                  <td className="px-6 py-4 text-sm font-medium whitespace-nowrap">
                     {player.name}
                   </td>
-                  <td className="px-4 py-2 text-sm text-gray-900 text-center">
+                  <td className="px-6 py-4 text-sm text-center whitespace-nowrap">
                     {player.totalMatches}
                   </td>
-                  <td className="px-4 py-2 text-sm text-gray-900 text-center">
+                  <td className="px-6 py-4 text-sm text-center font-medium whitespace-nowrap">
                     {player.wins}-{player.losses}-{player.ties}
                   </td>
-                  <td className="px-4 py-2 text-sm text-gray-900 text-center">
+                  <td className="px-6 py-4 text-sm text-center whitespace-nowrap">
                     <span
                       className={`font-medium ${
                         player.winPercentage >= 70
-                          ? "text-green-600"
+                          ? "text-primary"
                           : player.winPercentage >= 50
-                          ? "text-yellow-600"
-                          : "text-red-600"
+                          ? "dark:text-orange-400 text-orange-500"
+                          : "text-destructive"
                       }`}
                     >
                       {player.winPercentage.toFixed(1)}%
                     </span>
                   </td>
-                  <td className="px-4 py-2 text-sm text-gray-900 text-center">
-                    <span className="text-xs">
-                      {player.singlesWins}-{player.singlesLosses}-
-                      {player.singlesTies}
-                    </span>
+                  <td className="px-6 py-4 text-sm text-center font-medium whitespace-nowrap">
+                    {player.singlesWins}-{player.singlesLosses}-
+                    {player.singlesTies}
                   </td>
-                  <td className="px-4 py-2 text-sm text-gray-900 text-center">
-                    <span className="text-xs">
-                      {player.doublesWins}-{player.doublesLosses}-
-                      {player.doublesTies}
-                    </span>
+                  <td className="px-6 py-4 text-sm text-center font-medium whitespace-nowrap">
+                    {player.doublesWins}-{player.doublesLosses}-
+                    {player.doublesTies}
                   </td>
                 </tr>
               ))}
@@ -271,28 +270,28 @@ export default function PlayerStatistics() {
       )}
 
       {/* Summary Stats */}
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-blue-50 p-4 rounded-lg">
-          <h3 className="text-lg font-medium text-blue-900 mb-2">
+      <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-secondary rounded-lg p-6 border border-border">
+          <h3 className="text-lg font-medium mb-2">
             Total Matches
           </h3>
-          <p className="text-2xl font-bold text-blue-600">
+          <p className="text-3xl font-bold text-primary">
             {matchResults.length}
           </p>
         </div>
-        <div className="bg-green-50 p-4 rounded-lg">
-          <h3 className="text-lg font-medium text-green-900 mb-2">
+        <div className="bg-secondary rounded-lg p-6 border border-border">
+          <h3 className="text-lg font-medium mb-2">
             Active Players
           </h3>
-          <p className="text-2xl font-bold text-green-600">
+          <p className="text-3xl font-bold text-primary">
             {playerStats.length}
           </p>
         </div>
-        <div className="bg-purple-50 p-4 rounded-lg">
-          <h3 className="text-lg font-medium text-purple-900 mb-2">
+        <div className="bg-secondary rounded-lg p-6 border border-border">
+          <h3 className="text-lg font-medium mb-2">
             Recent Activity
           </h3>
-          <p className="text-sm text-purple-600">
+          <p className="text-lg text-muted-foreground">
             {matchResults.length > 0
               ? `Last match: ${formatMatchDate(matchResults[0]?.match_date)}`
               : "No matches yet"}

@@ -578,25 +578,25 @@ export default function MatchResultInput() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="bg-background text-foreground rounded-lg shadow-md p-6">
         <h2 className="text-2xl font-semibold mb-4">Input Match Results</h2>
-        <p className="text-gray-600">Loading...</p>
+        <p className="text-muted-foreground">Loading...</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
+    <div className="bg-background text-foreground rounded-lg shadow-md p-6">
       <h2 className="text-2xl font-semibold mb-4">Input Match Results</h2>
 
       {error && (
-        <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+        <div className="mb-4 p-3 bg-destructive/10 border border-destructive text-destructive rounded">
           {error}
         </div>
       )}
 
       {success && (
-        <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded">
+        <div className="mb-4 p-3 bg-primary/10 border border-primary text-primary rounded">
           {success}
         </div>
       )}
@@ -604,14 +604,14 @@ export default function MatchResultInput() {
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Team Match Selection */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium mb-1">
             Team Match
           </label>
           <select
             value={teamMatchId}
             onChange={(e) => setTeamMatchId(Number(e.target.value) || "")}
             required
-            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full p-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
           >
             <option value="">Select a match</option>
             {teamMatches.map((match) => (
@@ -624,7 +624,7 @@ export default function MatchResultInput() {
 
         {/* Singles/Doubles Selection */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium mb-1">
             Match Type
           </label>
           <div className="flex space-x-4">
@@ -654,14 +654,14 @@ export default function MatchResultInput() {
 
         {/* Position */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium mb-1">
             Position
           </label>
           <select
             value={pos}
             onChange={(e) => setPos(Number(e.target.value) || "")}
             required
-            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full p-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
           >
             <option value={1}>1</option>
             <option value={2}>2</option>
@@ -671,14 +671,14 @@ export default function MatchResultInput() {
 
         {/* Player 1 */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium mb-1">
             Player 1
           </label>
           <select
             value={player1}
             onChange={(e) => setPlayer1(Number(e.target.value) || "")}
             required
-            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full p-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
           >
             <option value="">Select a player</option>
             {players.map((player) => (
@@ -692,14 +692,14 @@ export default function MatchResultInput() {
         {/* Player 2 (for doubles) */}
         {!isSingles && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium mb-1">
               Player 2
             </label>
             <select
               value={player2}
               onChange={(e) => setPlayer2(Number(e.target.value) || "")}
               required
-              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full p-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
             >
               <option value="">Select a player</option>
               {players
@@ -714,15 +714,9 @@ export default function MatchResultInput() {
         )}
 
         {/* Set Scores */}
-        <div className="mb-2">
-          {/* <p className="text-sm text-gray-600">
-            <strong>Scoring Rules:</strong> Sets 1-2: 6-0 to 6-4, or 7-5, 7-6
-            wins. Set 3: 1-0, 0-1, or 1-1 (super tiebreak).
-          </p> */}
-        </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium mb-1">
               Set 1 Score *
             </label>
             <div className="flex gap-2 items-center">
@@ -734,7 +728,7 @@ export default function MatchResultInput() {
                   )
                 }
                 required
-                className="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="flex-1 p-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
               >
                 <option value="">Us</option>
                 {getScoreOptions(set1TheirScore, false).map((num) => (
@@ -743,7 +737,7 @@ export default function MatchResultInput() {
                   </option>
                 ))}
               </select>
-              <span className="text-gray-500">-</span>
+              <span className="text-muted">-</span>
               <select
                 value={set1TheirScore}
                 onChange={(e) =>
@@ -752,7 +746,7 @@ export default function MatchResultInput() {
                   )
                 }
                 required
-                className="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="flex-1 p-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
               >
                 <option value="">Them</option>
                 {getScoreOptions(set1OurScore, false).map((num) => (
@@ -766,13 +760,13 @@ export default function MatchResultInput() {
               set1TheirScore !== "" &&
               !incompleteReason &&
               !isValidRegularSetScore(set1OurScore, set1TheirScore) && (
-                <p className="text-red-500 text-sm mt-1">
+                <p className="text-destructive text-sm mt-1">
                   Invalid score combination
                 </p>
               )}
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium mb-1">
               Set 2 Score *
             </label>
             <div className="flex gap-2 items-center">
@@ -784,7 +778,7 @@ export default function MatchResultInput() {
                   )
                 }
                 required
-                className="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="flex-1 p-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
               >
                 <option value="">Us</option>
                 {getScoreOptions(set2TheirScore, false).map((num) => (
@@ -793,7 +787,7 @@ export default function MatchResultInput() {
                   </option>
                 ))}
               </select>
-              <span className="text-gray-500">-</span>
+              <span className="text-muted">-</span>
               <select
                 value={set2TheirScore}
                 onChange={(e) =>
@@ -802,7 +796,7 @@ export default function MatchResultInput() {
                   )
                 }
                 required
-                className="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="flex-1 p-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
               >
                 <option value="">Them</option>
                 {getScoreOptions(set2OurScore, false).map((num) => (
@@ -816,14 +810,14 @@ export default function MatchResultInput() {
               set2TheirScore !== "" &&
               !incompleteReason &&
               !isValidRegularSetScore(set2OurScore, set2TheirScore) && (
-                <p className="text-red-500 text-sm mt-1">
+                <p className="text-destructive text-sm mt-1">
                   Invalid score combination
                 </p>
               )}
           </div>
           {!shouldHideThirdSet() && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium mb-1">
                 Set 3 Score
               </label>
               <div className="flex gap-2 items-center">
@@ -834,7 +828,7 @@ export default function MatchResultInput() {
                       e.target.value === "" ? "" : Number(e.target.value)
                     )
                   }
-                  className="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="flex-1 p-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
                 >
                   <option value="">Us</option>
                   {getScoreOptions(set3TheirScore, true).map((num) => (
@@ -843,7 +837,7 @@ export default function MatchResultInput() {
                     </option>
                   ))}
                 </select>
-                <span className="text-gray-500">-</span>
+                <span className="text-muted">-</span>
                 <select
                   value={set3TheirScore}
                   onChange={(e) =>
@@ -851,7 +845,7 @@ export default function MatchResultInput() {
                       e.target.value === "" ? "" : Number(e.target.value)
                     )
                   }
-                  className="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="flex-1 p-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
                 >
                   <option value="">Them</option>
                   {getScoreOptions(set3OurScore, true).map((num) => (
@@ -865,27 +859,17 @@ export default function MatchResultInput() {
                 set3TheirScore !== "" &&
                 !incompleteReason &&
                 !isValidThirdSetScore(set3OurScore, set3TheirScore) && (
-                  <p className="text-red-500 text-sm mt-1">
+                  <p className="text-destructive text-sm mt-1">
                     Invalid score combination
                   </p>
                 )}
             </div>
           )}
-          {/* {shouldHideThirdSet() && (
-            <div className="col-span-full">
-              <div className="bg-green-50 border border-green-200 rounded-md p-3">
-                <p className="text-green-700 text-sm">
-                  🎾 <strong>Match Complete!</strong> Same team won both sets -
-                  no third set needed.
-                </p>
-              </div>
-            </div>
-          )} */}
         </div>
 
         {/* Incomplete Reason */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium mb-1">
             Incomplete Reason (Optional)
           </label>
           <select
@@ -894,7 +878,7 @@ export default function MatchResultInput() {
               setIncompleteReason(e.target.value);
               setManualResult(""); // Reset manual result when changing incomplete reason
             }}
-            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full p-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
           >
             <option value="">None - Complete Match</option>
             <option value="injury">Injury</option>
@@ -902,17 +886,17 @@ export default function MatchResultInput() {
           </select>
         </div>
 
-        {/* Manual Result Selection (only when incomplete reason is selected) */}
+        {/* Manual Result Selection */}
         {incompleteReason && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium mb-1">
               Match Result *
             </label>
             <select
               value={manualResult}
               onChange={(e) => setManualResult(e.target.value)}
               required
-              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full p-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
             >
               <option value="">Select result</option>
               <option value="win">Win</option>
@@ -925,39 +909,23 @@ export default function MatchResultInput() {
         {/* Result Display */}
         {canSubmit() && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium mb-1">
               Match Result
             </label>
             <div
               className={`w-full p-3 border rounded-md ${
                 getMatchResult() === "win"
-                  ? "bg-green-50 border-green-200"
+                  ? "bg-primary/10 border-primary text-primary"
                   : getMatchResult() === "loss"
-                  ? "bg-red-50 border-red-200"
-                  : "bg-yellow-50 border-yellow-200"
+                  ? "bg-destructive/10 border-destructive text-destructive"
+                  : "bg-accent/10 border-accent text-accent-foreground"
               }`}
             >
               <div className="flex items-center">
-                <span
-                  className={`font-medium capitalize ${
-                    getMatchResult() === "win"
-                      ? "text-green-800"
-                      : getMatchResult() === "loss"
-                      ? "text-red-800"
-                      : "text-yellow-800"
-                  }`}
-                >
+                <span className="font-medium capitalize">
                   {getMatchResult()}
                 </span>
-                <span
-                  className={`text-sm ml-2 ${
-                    getMatchResult() === "win"
-                      ? "text-green-600"
-                      : getMatchResult() === "loss"
-                      ? "text-red-600"
-                      : "text-yellow-600"
-                  }`}
-                >
+                <span className="text-sm ml-2 opacity-80">
                   {incompleteReason
                     ? `(Manual - ${incompleteReason})`
                     : "(Auto-determined from set scores)"}
@@ -969,9 +937,9 @@ export default function MatchResultInput() {
 
         {!canSubmit() && (
           <div>
-            <div className="w-full p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+            <div className="w-full p-3 bg-accent/10 border border-accent rounded-md">
               <div className="flex items-center">
-                <span className="text-yellow-800 text-sm">
+                <span className="text-accent-foreground text-sm">
                   ⚠️ {getSubmissionBlockReason()} to submit the match result
                 </span>
               </div>
@@ -984,8 +952,8 @@ export default function MatchResultInput() {
           disabled={submitting || !canSubmit()}
           className={`w-full py-2 px-4 rounded-md transition-colors ${
             submitting || !canSubmit()
-              ? "bg-gray-400 cursor-not-allowed text-white"
-              : "bg-blue-600 text-white hover:bg-blue-700"
+              ? "bg-muted text-muted-foreground cursor-not-allowed"
+              : "bg-primary text-primary-foreground hover:bg-primary/90"
           }`}
         >
           {submitting

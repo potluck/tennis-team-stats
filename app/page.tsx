@@ -3,14 +3,16 @@ import Players from "./components/Players";
 import TeamMatches from "./components/TeamMatches";
 import MatchResultInput from "./components/MatchResultInput";
 import PlayerStatistics from "./components/PlayerStatistics";
+import { ThemeToggle } from "./components/ThemeToggle";
 
 export default function Home() {
   return (
-    <div className="min-h-screen p-8 bg-gray-50">
+    <div className="min-h-screen p-8">
       <main className="max-w-6xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8 text-gray-900">
-          Tennis Team Stats
-        </h1>
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-bold">Tennis Team Stats</h1>
+          <ThemeToggle />
+        </div>
 
         <MatchResultInput />
         <br />
