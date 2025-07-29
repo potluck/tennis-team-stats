@@ -10,7 +10,7 @@ interface Player {
 
 interface TeamMatch {
   id: number;
-  date: string;
+  match_date: string;
   opponent_name: string;
 }
 
@@ -34,6 +34,30 @@ export default function MatchResultInput() {
   const [set2TheirScore, setSet2TheirScore] = useState<number | "">("");
   const [set3OurScore, setSet3OurScore] = useState<number | "">("");
   const [set3TheirScore, setSet3TheirScore] = useState<number | "">("");
+  const [incompleteReason, setIncompleteReason] = useState<string>("");
+  const [manualResult, setManualResult] = useState<string>("");
+
+  // Helper function to safely format dates
+  const formatMatchDate = (dateString: string): string => {
+    try {
+      const date = new Date(dateString);
+      console.log(date);
+      if (isNaN(date.getTime())) {
+        // If date is invalid, return the original string
+        return dateString;
+      }
+      return new Date(date.getTime() + 12 * 60 * 60 * 1000).toLocaleDateString(
+        "en-US",
+        {
+          month: "long",
+          day: "numeric",
+        }
+      );
+    } catch (error) {
+      // If any error occurs, return the original string
+      return dateString;
+    }
+  };
 
   // Helper functions for score validation
   const getValidScoresForRegularSet = (partnerScore: number | ""): number[] => {
@@ -66,6 +90,22 @@ export default function MatchResultInput() {
     if (partnerScore === 0) return [1];
     if (partnerScore === 1) return [0, 1];
     return [];
+  };
+
+  // Helper function to get score options based on whether match is incomplete
+  const getScoreOptions = (
+    partnerScore: number | "",
+    isThirdSet: boolean = false
+  ): number[] => {
+    // If incomplete reason is selected, allow any score from 0-7 (or 0-1 for third set)
+    if (incompleteReason) {
+      return isThirdSet ? [0, 1] : [0, 1, 2, 3, 4, 5, 6, 7];
+    }
+
+    // Otherwise, use normal tennis scoring rules
+    return isThirdSet
+      ? getValidScoresForThirdSet(partnerScore)
+      : getValidScoresForRegularSet(partnerScore);
   };
 
   const isValidRegularSetScore = (
@@ -174,6 +214,11 @@ export default function MatchResultInput() {
 
   // Determine overall match result based on sets won
   const getMatchResult = (): string => {
+    // If incomplete reason is selected, use manual result
+    if (incompleteReason && manualResult) {
+      return manualResult;
+    }
+
     const set1Winner = getSetWinner(set1OurScore, set1TheirScore);
     const set2Winner = getSetWinner(set2OurScore, set2TheirScore);
     const set3Winner = getSetWinner(set3OurScore, set3TheirScore);
@@ -209,6 +254,11 @@ export default function MatchResultInput() {
 
   // Check if result should be automatically determined
   const isResultAutoDetermined = (): boolean => {
+    // If incomplete reason is selected, result is manually determined
+    if (incompleteReason) {
+      return manualResult !== "";
+    }
+
     const set1Winner = getSetWinner(set1OurScore, set1TheirScore);
     const set2Winner = getSetWinner(set2OurScore, set2TheirScore);
 
@@ -256,6 +306,9 @@ export default function MatchResultInput() {
       if (!isSingles && !player2) return "Select Player 2";
     }
     if (!isResultAutoDetermined()) {
+      if (incompleteReason) {
+        return "Select match result";
+      }
       return "Complete set scores";
     }
     return "";
@@ -310,6 +363,10 @@ export default function MatchResultInput() {
   // Score change handlers with validation and auto-completion
   const handleSet1OurScoreChange = (newScore: number | "") => {
     setSet1OurScore(newScore);
+
+    // Skip validation for incomplete matches
+    if (incompleteReason) return;
+
     if (newScore !== "" && set1TheirScore !== "") {
       if (!isValidRegularSetScore(newScore, set1TheirScore)) {
         setSet1TheirScore("");
@@ -325,6 +382,10 @@ export default function MatchResultInput() {
 
   const handleSet1TheirScoreChange = (newScore: number | "") => {
     setSet1TheirScore(newScore);
+
+    // Skip validation for incomplete matches
+    if (incompleteReason) return;
+
     if (newScore !== "" && set1OurScore !== "") {
       if (!isValidRegularSetScore(set1OurScore, newScore)) {
         setSet1OurScore("");
@@ -340,6 +401,10 @@ export default function MatchResultInput() {
 
   const handleSet2OurScoreChange = (newScore: number | "") => {
     setSet2OurScore(newScore);
+
+    // Skip validation for incomplete matches
+    if (incompleteReason) return;
+
     if (newScore !== "" && set2TheirScore !== "") {
       if (!isValidRegularSetScore(newScore, set2TheirScore)) {
         setSet2TheirScore("");
@@ -355,6 +420,10 @@ export default function MatchResultInput() {
 
   const handleSet2TheirScoreChange = (newScore: number | "") => {
     setSet2TheirScore(newScore);
+
+    // Skip validation for incomplete matches
+    if (incompleteReason) return;
+
     if (newScore !== "" && set2OurScore !== "") {
       if (!isValidRegularSetScore(set2OurScore, newScore)) {
         setSet2OurScore("");
@@ -370,6 +439,10 @@ export default function MatchResultInput() {
 
   const handleSet3OurScoreChange = (newScore: number | "") => {
     setSet3OurScore(newScore);
+
+    // Skip validation for incomplete matches
+    if (incompleteReason) return;
+
     if (newScore !== "" && set3TheirScore !== "") {
       if (!isValidThirdSetScore(newScore, set3TheirScore)) {
         setSet3TheirScore("");
@@ -385,6 +458,10 @@ export default function MatchResultInput() {
 
   const handleSet3TheirScoreChange = (newScore: number | "") => {
     setSet3TheirScore(newScore);
+
+    // Skip validation for incomplete matches
+    if (incompleteReason) return;
+
     if (newScore !== "" && set3OurScore !== "") {
       if (!isValidThirdSetScore(set3OurScore, newScore)) {
         setSet3OurScore("");
@@ -418,27 +495,29 @@ export default function MatchResultInput() {
       return;
     }
 
-    // Validate score combinations before submission
-    if (!isValidRegularSetScore(set1OurScore, set1TheirScore)) {
-      setError("Set 1 has an invalid score combination");
-      setSubmitting(false);
-      return;
-    }
+    // Validate score combinations before submission (only for complete matches)
+    if (!incompleteReason) {
+      if (!isValidRegularSetScore(set1OurScore, set1TheirScore)) {
+        setError("Set 1 has an invalid score combination");
+        setSubmitting(false);
+        return;
+      }
 
-    if (!isValidRegularSetScore(set2OurScore, set2TheirScore)) {
-      setError("Set 2 has an invalid score combination");
-      setSubmitting(false);
-      return;
-    }
+      if (!isValidRegularSetScore(set2OurScore, set2TheirScore)) {
+        setError("Set 2 has an invalid score combination");
+        setSubmitting(false);
+        return;
+      }
 
-    if (
-      set3OurScore !== "" &&
-      set3TheirScore !== "" &&
-      !isValidThirdSetScore(set3OurScore, set3TheirScore)
-    ) {
-      setError("Set 3 has an invalid score combination");
-      setSubmitting(false);
-      return;
+      if (
+        set3OurScore !== "" &&
+        set3TheirScore !== "" &&
+        !isValidThirdSetScore(set3OurScore, set3TheirScore)
+      ) {
+        setError("Set 3 has an invalid score combination");
+        setSubmitting(false);
+        return;
+      }
     }
 
     try {
@@ -466,6 +545,7 @@ export default function MatchResultInput() {
             set3OurScore !== "" && set3TheirScore !== ""
               ? `${set3OurScore}-${set3TheirScore}`
               : null,
+          incomplete_reason: incompleteReason || null,
         }),
       });
 
@@ -476,8 +556,8 @@ export default function MatchResultInput() {
 
       setSuccess("Match result submitted successfully!");
 
-      // Reset form
-      setTeamMatchId("");
+      // Reset form (but keep team match selected)
+      // setTeamMatchId(""); // Keep team match selected
       setPos(1);
       setPlayer1("");
       setPlayer2("");
@@ -487,6 +567,8 @@ export default function MatchResultInput() {
       setSet2TheirScore("");
       setSet3OurScore("");
       setSet3TheirScore("");
+      setIncompleteReason("");
+      setManualResult("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
@@ -534,7 +616,7 @@ export default function MatchResultInput() {
             <option value="">Select a match</option>
             {teamMatches.map((match) => (
               <option key={match.id} value={match.id}>
-                {match.date} vs {match.opponent_name}
+                {formatMatchDate(match.match_date)} vs {match.opponent_name}
               </option>
             ))}
           </select>
@@ -655,7 +737,7 @@ export default function MatchResultInput() {
                 className="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Us</option>
-                {getValidScoresForRegularSet(set1TheirScore).map((num) => (
+                {getScoreOptions(set1TheirScore, false).map((num) => (
                   <option key={num} value={num}>
                     {num}
                   </option>
@@ -673,7 +755,7 @@ export default function MatchResultInput() {
                 className="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Them</option>
-                {getValidScoresForRegularSet(set1OurScore).map((num) => (
+                {getScoreOptions(set1OurScore, false).map((num) => (
                   <option key={num} value={num}>
                     {num}
                   </option>
@@ -682,6 +764,7 @@ export default function MatchResultInput() {
             </div>
             {set1OurScore !== "" &&
               set1TheirScore !== "" &&
+              !incompleteReason &&
               !isValidRegularSetScore(set1OurScore, set1TheirScore) && (
                 <p className="text-red-500 text-sm mt-1">
                   Invalid score combination
@@ -704,7 +787,7 @@ export default function MatchResultInput() {
                 className="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Us</option>
-                {getValidScoresForRegularSet(set2TheirScore).map((num) => (
+                {getScoreOptions(set2TheirScore, false).map((num) => (
                   <option key={num} value={num}>
                     {num}
                   </option>
@@ -722,7 +805,7 @@ export default function MatchResultInput() {
                 className="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Them</option>
-                {getValidScoresForRegularSet(set2OurScore).map((num) => (
+                {getScoreOptions(set2OurScore, false).map((num) => (
                   <option key={num} value={num}>
                     {num}
                   </option>
@@ -731,6 +814,7 @@ export default function MatchResultInput() {
             </div>
             {set2OurScore !== "" &&
               set2TheirScore !== "" &&
+              !incompleteReason &&
               !isValidRegularSetScore(set2OurScore, set2TheirScore) && (
                 <p className="text-red-500 text-sm mt-1">
                   Invalid score combination
@@ -753,7 +837,7 @@ export default function MatchResultInput() {
                   className="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">Us</option>
-                  {getValidScoresForThirdSet(set3TheirScore).map((num) => (
+                  {getScoreOptions(set3TheirScore, true).map((num) => (
                     <option key={num} value={num}>
                       {num}
                     </option>
@@ -770,7 +854,7 @@ export default function MatchResultInput() {
                   className="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">Them</option>
-                  {getValidScoresForThirdSet(set3OurScore).map((num) => (
+                  {getScoreOptions(set3OurScore, true).map((num) => (
                     <option key={num} value={num}>
                       {num}
                     </option>
@@ -779,6 +863,7 @@ export default function MatchResultInput() {
               </div>
               {set3OurScore !== "" &&
                 set3TheirScore !== "" &&
+                !incompleteReason &&
                 !isValidThirdSetScore(set3OurScore, set3TheirScore) && (
                   <p className="text-red-500 text-sm mt-1">
                     Invalid score combination
@@ -797,6 +882,45 @@ export default function MatchResultInput() {
             </div>
           )} */}
         </div>
+
+        {/* Incomplete Reason */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Incomplete Reason (Optional)
+          </label>
+          <select
+            value={incompleteReason}
+            onChange={(e) => {
+              setIncompleteReason(e.target.value);
+              setManualResult(""); // Reset manual result when changing incomplete reason
+            }}
+            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="">None - Complete Match</option>
+            <option value="injury">Injury</option>
+            <option value="timeout">Timeout</option>
+          </select>
+        </div>
+
+        {/* Manual Result Selection (only when incomplete reason is selected) */}
+        {incompleteReason && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Match Result *
+            </label>
+            <select
+              value={manualResult}
+              onChange={(e) => setManualResult(e.target.value)}
+              required
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Select result</option>
+              <option value="win">Win</option>
+              <option value="loss">Loss</option>
+              <option value="tie">Tie</option>
+            </select>
+          </div>
+        )}
 
         {/* Result Display */}
         {canSubmit() && (
@@ -834,7 +958,9 @@ export default function MatchResultInput() {
                       : "text-yellow-600"
                   }`}
                 >
-                  (Auto-determined from set scores)
+                  {incompleteReason
+                    ? `(Manual - ${incompleteReason})`
+                    : "(Auto-determined from set scores)"}
                 </span>
               </div>
             </div>
