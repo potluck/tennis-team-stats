@@ -2,6 +2,7 @@ import Teams from "./components/Teams";
 import Players from "./components/Players";
 import TeamMatches from "./components/TeamMatches";
 import MatchResultInput from "./components/MatchResultInput";
+import PlayerStatistics from "./components/PlayerStatistics";
 
 export default function Home() {
   return (
@@ -14,6 +15,11 @@ export default function Home() {
         <MatchResultInput />
         <br />
         <br />
+
+        <PlayerStatistics />
+        <br />
+        <br />
+
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
           <TeamMatches />
         </div>
