@@ -53,7 +53,7 @@ export default function MatchResultInput() {
           day: "numeric",
         }
       );
-    } catch (error) {
+    } catch {
       // If any error occurs, return the original string
       return dateString;
     }

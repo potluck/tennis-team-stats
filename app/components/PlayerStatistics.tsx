@@ -170,7 +170,7 @@ export default function PlayerStatistics() {
           day: "numeric",
         }
       );
-    } catch (error) {
+    } catch {
       return dateString;
     }
   };

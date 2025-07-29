@@ -1,8 +1,6 @@
-import Teams from "./components/Teams";
-import Players from "./components/Players";
-import TeamMatches from "./components/TeamMatches";
 import MatchResultInput from "./components/MatchResultInput";
 import PlayerStatistics from "./components/PlayerStatistics";
+import TeamMatches from "./components/TeamMatches";
 import { ThemeToggle } from "./components/ThemeToggle";
 
 export default function Home() {
