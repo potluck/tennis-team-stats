@@ -22,7 +22,12 @@ export default function TeamMatches() {
           throw new Error("Failed to fetch team matches");
         }
         const data = await response.json();
-        setTeamMatches(data);
+        // Sort by date in descending order (most recent first)
+        const sortedData = data.sort(
+          (a: TeamMatch, b: TeamMatch) =>
+            new Date(b.match_date).getTime() - new Date(a.match_date).getTime()
+        );
+        setTeamMatches(sortedData);
       } catch (err) {
         setError(err instanceof Error ? err.message : "An error occurred");
       } finally {
