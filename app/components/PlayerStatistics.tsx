@@ -41,12 +41,28 @@ interface PlayerStats {
   doublesTies: number;
 }
 
+interface PairStats {
+  player1Id: number;
+  player2Id: number;
+  player1Name: string;
+  player2Name: string;
+  wins: number;
+  losses: number;
+  ties: number;
+  totalMatches: number;
+  winPercentage: number;
+}
+
+type ViewMode = "all" | "singles" | "doubles";
+
 export default function PlayerStatistics() {
   const [matchResults, setMatchResults] = useState<MatchResult[]>([]);
   const [playerStats, setPlayerStats] = useState<PlayerStats[]>([]);
+  const [pairStats, setPairStats] = useState<PairStats[]>([]);
   const [teamName, setTeamName] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("all");
 
   useEffect(() => {
     async function fetchData() {
@@ -73,6 +89,7 @@ export default function PlayerStatistics() {
         
         setMatchResults(matchesData);
         calculatePlayerStats(matchesData);
+        calculatePairStats(matchesData);
       } catch (err) {
         setError(err instanceof Error ? err.message : "An error occurred");
       } finally {
@@ -109,6 +126,10 @@ export default function PlayerStatistics() {
 
     // Process each match result
     results.forEach((result) => {
+      // Skip matches that don't match the current view mode
+      if (viewMode === "singles" && !result.is_singles) return;
+      if (viewMode === "doubles" && result.is_singles) return;
+
       // Initialize player1
       initializePlayer(result.player1, result.player1_name);
       const player1Stats = statsMap.get(result.player1)!;
@@ -157,26 +178,91 @@ export default function PlayerStatistics() {
       }
     });
 
-    // Calculate win percentages (ties count as half wins)
-    statsMap.forEach((stats) => {
-      const totalMatches = stats.wins + stats.losses + stats.ties;
-      const totalPoints = stats.wins + stats.ties * 0.5;
-      stats.winPercentage =
-        totalMatches > 0 ? (totalPoints / totalMatches) * 100 : 0;
-    });
-
-    // Convert to array and sort by win percentage, then by total matches
-    const statsArray = Array.from(statsMap.values()).sort((a, b) => {
-      // Primary sort: by win percentage (descending)
-      if (b.winPercentage !== a.winPercentage) {
-        return b.winPercentage - a.winPercentage;
-      }
-      // Secondary sort: by total matches (descending)
-      return b.totalMatches - a.totalMatches;
-    });
+    // Calculate win percentages and filter based on view mode
+    const statsArray = Array.from(statsMap.values())
+      .map(stats => {
+        const relevantWins = viewMode === "singles" ? stats.singlesWins :
+                           viewMode === "doubles" ? stats.doublesWins :
+                           stats.wins;
+        const relevantLosses = viewMode === "singles" ? stats.singlesLosses :
+                             viewMode === "doubles" ? stats.doublesLosses :
+                             stats.losses;
+        const relevantTies = viewMode === "singles" ? stats.singlesTies :
+                           viewMode === "doubles" ? stats.doublesTies :
+                           stats.ties;
+        const totalMatches = relevantWins + relevantLosses + relevantTies;
+        const totalPoints = relevantWins + relevantTies * 0.5;
+        
+        return {
+          ...stats,
+          totalMatches,
+          winPercentage: totalMatches > 0 ? (totalPoints / totalMatches) * 100 : 0
+        };
+      })
+      .filter(stats => stats.totalMatches > 0) // Only show players with relevant matches
+      .sort((a, b) => {
+        if (b.winPercentage !== a.winPercentage) {
+          return b.winPercentage - a.winPercentage;
+        }
+        return b.totalMatches - a.totalMatches;
+      });
 
     setPlayerStats(statsArray);
   };
+
+  const calculatePairStats = (results: MatchResult[]) => {
+    const pairsMap = new Map<string, PairStats>();
+
+    // Process only doubles matches
+    results
+      .filter(result => !result.is_singles && result.player2 !== null && result.player2_name !== null)
+      .forEach(result => {
+        // Create a unique key for each pair (using smaller ID first to avoid duplicates)
+        const key = [result.player1, result.player2!].sort((a, b) => a - b).join('-');
+        
+        if (!pairsMap.has(key)) {
+          pairsMap.set(key, {
+            player1Id: Math.min(result.player1, result.player2!),
+            player2Id: Math.max(result.player1, result.player2!),
+            player1Name: result.player1_name,
+            player2Name: result.player2_name!,
+            wins: 0,
+            losses: 0,
+            ties: 0,
+            totalMatches: 0,
+            winPercentage: 0
+          });
+        }
+
+        const stats = pairsMap.get(key)!;
+        stats.totalMatches++;
+
+        if (result.result === "win") stats.wins++;
+        else if (result.result === "loss") stats.losses++;
+        else if (result.result === "tie") stats.ties++;
+
+        // Calculate win percentage (counting ties as half wins)
+        const totalPoints = stats.wins + stats.ties * 0.5;
+        stats.winPercentage = (totalPoints / stats.totalMatches) * 100;
+      });
+
+    // Convert to array and sort by win percentage, then by total matches
+    const statsArray = Array.from(pairsMap.values()).sort((a, b) => {
+      if (b.winPercentage !== a.winPercentage) {
+        return b.winPercentage - a.winPercentage;
+      }
+      return b.totalMatches - a.totalMatches;
+    });
+
+    setPairStats(statsArray);
+  };
+
+  useEffect(() => {
+    // Recalculate stats when view mode changes
+    if (matchResults.length > 0) {
+      calculatePlayerStats(matchResults);
+    }
+  }, [viewMode, matchResults]);
 
   const formatMatchDate = (dateString: string): string => {
     try {
@@ -223,11 +309,86 @@ export default function PlayerStatistics() {
         <div className="h-1 w-20 bg-primary rounded"></div>
       </div>
 
-      <h3 className="text-2xl font-semibold mb-6">Player Statistics</h3>
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-2xl font-semibold">
+          {viewMode === "doubles" ? "Doubles Statistics" :
+           viewMode === "singles" ? "Singles Statistics" :
+           "Player Statistics"}
+        </h3>
+        <div className="flex p-0.5 bg-secondary rounded-lg">
+          {(["all", "singles", "doubles"] as ViewMode[]).map((mode) => (
+            <button
+              key={mode}
+              onClick={() => setViewMode(mode)}
+              className={`px-4 py-2 rounded-md transition-colors capitalize ${
+                viewMode === mode
+                  ? "bg-primary text-primary-foreground"
+                  : "hover:bg-secondary/80"
+              }`}
+            >
+              {mode}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {playerStats.length === 0 ? (
         <p className="text-muted-foreground">No match results found.</p>
+      ) : viewMode === "doubles" ? (
+        // Doubles pairs table
+        <div className="overflow-x-auto rounded-lg border border-border">
+          <table className="min-w-full divide-y divide-border">
+            <thead>
+              <tr className="bg-secondary">
+                <th scope="col" className="px-6 py-4 text-left text-sm font-semibold">
+                  Pair
+                </th>
+                <th scope="col" className="px-6 py-4 text-center text-sm font-semibold">
+                  Matches
+                </th>
+                <th scope="col" className="px-6 py-4 text-center text-sm font-semibold">
+                  W-L-T
+                </th>
+                <th scope="col" className="px-6 py-4 text-center text-sm font-semibold">
+                  Win %
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {pairStats.map((pair) => (
+                <tr
+                  key={`${pair.player1Id}-${pair.player2Id}`}
+                  className="hover:bg-secondary/50 transition-colors"
+                >
+                  <td className="px-6 py-4 text-sm font-medium whitespace-nowrap">
+                    {pair.player1Name} / {pair.player2Name}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-center whitespace-nowrap">
+                    {pair.totalMatches}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-center font-medium whitespace-nowrap">
+                    {pair.wins}-{pair.losses}-{pair.ties}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-center whitespace-nowrap">
+                    <span
+                      className={`font-medium ${
+                        pair.winPercentage >= 70
+                          ? "text-primary"
+                          : pair.winPercentage >= 50
+                          ? "dark:text-orange-400 text-orange-500"
+                          : "text-destructive"
+                      }`}
+                    >
+                      {pair.winPercentage.toFixed(1)}%
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : (
+        // Individual players table
         <div className="overflow-x-auto rounded-lg border border-border">
           <table className="min-w-full divide-y divide-border">
             <thead>
@@ -244,20 +405,21 @@ export default function PlayerStatistics() {
                 <th scope="col" className="px-6 py-4 text-center text-sm font-semibold">
                   Win %
                 </th>
-                <th scope="col" className="px-6 py-4 text-center text-sm font-semibold">
-                  Singles
-                </th>
-                <th scope="col" className="px-6 py-4 text-center text-sm font-semibold">
-                  Doubles
-                </th>
+                {viewMode === "all" && (
+                  <>
+                    <th scope="col" className="px-6 py-4 text-center text-sm font-semibold">
+                      Singles
+                    </th>
+                    <th scope="col" className="px-6 py-4 text-center text-sm font-semibold">
+                      Doubles
+                    </th>
+                  </>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {playerStats.map((player) => (
-                <tr
-                  key={player.id}
-                  className="hover:bg-secondary/50 transition-colors"
-                >
+                <tr key={player.id} className="hover:bg-secondary/50 transition-colors">
                   <td className="px-6 py-4 text-sm font-medium whitespace-nowrap">
                     {player.name}
                   </td>
@@ -265,7 +427,11 @@ export default function PlayerStatistics() {
                     {player.totalMatches}
                   </td>
                   <td className="px-6 py-4 text-sm text-center font-medium whitespace-nowrap">
-                    {player.wins}-{player.losses}-{player.ties}
+                    {viewMode === "singles" 
+                      ? `${player.singlesWins}-${player.singlesLosses}-${player.singlesTies}`
+                      : viewMode === "doubles"
+                      ? `${player.doublesWins}-${player.doublesLosses}-${player.doublesTies}`
+                      : `${player.wins}-${player.losses}-${player.ties}`}
                   </td>
                   <td className="px-6 py-4 text-sm text-center whitespace-nowrap">
                     <span
@@ -280,14 +446,16 @@ export default function PlayerStatistics() {
                       {player.winPercentage.toFixed(1)}%
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-center font-medium whitespace-nowrap">
-                    {player.singlesWins}-{player.singlesLosses}-
-                    {player.singlesTies}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-center font-medium whitespace-nowrap">
-                    {player.doublesWins}-{player.doublesLosses}-
-                    {player.doublesTies}
-                  </td>
+                  {viewMode === "all" && (
+                    <>
+                      <td className="px-6 py-4 text-sm text-center whitespace-nowrap">
+                        {player.singlesWins}-{player.singlesLosses}-{player.singlesTies}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-center whitespace-nowrap">
+                        {player.doublesWins}-{player.doublesLosses}-{player.doublesTies}
+                      </td>
+                    </>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -299,18 +467,24 @@ export default function PlayerStatistics() {
       <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-secondary rounded-lg p-6 border border-border">
           <h3 className="text-lg font-medium mb-2">
-            Total Matches
+            {viewMode === "singles" ? "Singles Matches" :
+             viewMode === "doubles" ? "Doubles Matches" :
+             "Total Matches"}
           </h3>
           <p className="text-3xl font-bold text-primary">
-            {matchResults.length}
+            {viewMode === "singles" 
+              ? matchResults.filter(m => m.is_singles).length
+              : viewMode === "doubles"
+              ? matchResults.filter(m => !m.is_singles).length
+              : matchResults.length}
           </p>
         </div>
         <div className="bg-secondary rounded-lg p-6 border border-border">
           <h3 className="text-lg font-medium mb-2">
-            Active Players
+            {viewMode === "doubles" ? "Active Pairs" : "Active Players"}
           </h3>
           <p className="text-3xl font-bold text-primary">
-            {playerStats.length}
+            {viewMode === "doubles" ? pairStats.length : playerStats.length}
           </p>
         </div>
         <div className="bg-secondary rounded-lg p-6 border border-border">
