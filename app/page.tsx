@@ -20,9 +20,7 @@ export default function Home() {
         <br />
         <br />
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          <TeamMatches />
-        </div>
+        <TeamMatches />
       </main>
     </div>
   );

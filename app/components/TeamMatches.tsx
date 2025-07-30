@@ -2,6 +2,17 @@
 
 import { useState, useEffect } from "react";
 
+interface PositionResult {
+  is_singles: boolean;
+  pos: number;
+  result: "win" | "loss" | "tie";
+  player1: string;
+  player2: string | null;
+  set1_score: string;
+  set2_score: string;
+  set3_score: string | null;
+}
+
 interface TeamMatch {
   id: number;
   opponent_name: string;
@@ -9,80 +20,103 @@ interface TeamMatch {
   match_date: string;
   our_points: number;
   their_points: number;
+  position_results: PositionResult[];
 }
 
 export default function TeamMatches() {
   const [teamMatches, setTeamMatches] = useState<TeamMatch[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const formatMatchDate = (dateString: string): string => {
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-      });
-    } catch {
-      return dateString;
-    }
-  };
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchTeamMatches() {
       try {
         const response = await fetch("/api/get-team-matches");
         if (!response.ok) {
-          throw new Error("Failed to fetch team matches");
+          const errorData = await response.json();
+          throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
-        // Ensure points are numbers
-        const matchesWithNumberPoints = data.map((match: any) => ({
-          ...match,
-          our_points: Number(match.our_points),
-          their_points: Number(match.their_points)
-        }));
-        setTeamMatches(matchesWithNumberPoints);
+        setTeamMatches(data);
+        setError(null);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "An error occurred");
+        console.error("Error fetching team matches:", err);
+        setError(err instanceof Error ? err.message : "Failed to fetch team matches");
       } finally {
         setLoading(false);
       }
     }
-
     fetchTeamMatches();
   }, []);
 
-  if (loading) {
-    return (
-      <div className="bg-background text-foreground rounded-lg shadow-md p-6">
-        <h2 className="text-2xl font-semibold mb-4">Team Matches</h2>
-        <p className="text-muted-foreground">Loading team matches...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="bg-background text-foreground rounded-lg shadow-md p-6">
-        <h2 className="text-2xl font-semibold mb-4">Team Matches</h2>
-        <p className="text-destructive">Error: {error}</p>
-      </div>
-    );
-  }
+  const formatMatchDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    });
+  };
 
   const getScoreDisplay = (match: TeamMatch) => {
     const isWin = Number(match.our_points) > Number(match.their_points);
-    
     return (
-      <div className="flex items-center gap-2">
-        <span className={`text-sm font-medium ${
-          isWin ? "text-emerald-500" : "text-red-500"
-        }`}>
-          {match.our_points} - {match.their_points}
+      <span className={`text-lg font-bold ml-2 ${
+        isWin ? "text-emerald-500" : "text-red-500"
+      }`}>
+        ({match.our_points} - {match.their_points})
+      </span>
+    );
+  };
+
+  const getSetScores = (pos: PositionResult) => {
+    const scores = [pos.set1_score, pos.set2_score];
+    if (pos.set3_score) {
+      scores.push(pos.set3_score);
+    }
+    return scores.join(", ");
+  };
+
+  const getPositionResults = (match: TeamMatch) => {
+    if (!match.position_results) return null;
+
+    const singlesResults = match.position_results.filter(pos => pos.is_singles);
+    const doublesResults = match.position_results.filter(pos => !pos.is_singles);
+
+    const renderResult = (pos: PositionResult) => (
+      <div 
+        key={`${pos.is_singles}-${pos.pos}`} 
+        className="flex items-center gap-4 p-3 border border-input rounded-md bg-background/50"
+      >
+        <div className="flex-1">
+          <span className="text-sm text-muted-foreground">
+            {pos.is_singles ? "S" : "D"}{pos.pos}:
+          </span>
+          <span className={`text-sm font-medium ml-2 ${
+            pos.result === "win" ? "text-emerald-500" : 
+            pos.result === "loss" ? "text-red-500" : 
+            "text-foreground"
+          }`}>
+            {pos.result === "win" ? "W" : pos.result === "loss" ? "L" : "T"}
+          </span>
+          <span className="text-sm ml-2 text-muted-foreground">
+            ({getSetScores(pos)})
+          </span>
+        </div>
+        <span className="text-sm font-medium">
+          {pos.is_singles ? pos.player1 : `${pos.player1} / ${pos.player2}`}
         </span>
-        <span className="text-xs text-muted-foreground">points</span>
+      </div>
+    );
+
+    return (
+      <div className="grid grid-cols-2 gap-4 mt-4">
+        <div className="space-y-3">
+          {singlesResults.map(renderResult)}
+        </div>
+        <div className="space-y-3">
+          {doublesResults.map(renderResult)}
+        </div>
       </div>
     );
   };
@@ -90,18 +124,30 @@ export default function TeamMatches() {
   return (
     <div className="bg-background text-foreground rounded-lg shadow-md p-6">
       <h2 className="text-2xl font-semibold mb-4">Team Matches</h2>
-      {teamMatches.length === 0 ? (
+      {loading ? (
+        <p className="text-muted-foreground">Loading team matches...</p>
+      ) : error ? (
+        <div className="text-red-500">
+          <p>Error: {error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="mt-2 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+          >
+            Retry
+          </button>
+        </div>
+      ) : teamMatches.length === 0 ? (
         <p className="text-muted-foreground">No team matches found.</p>
       ) : (
-        <div className="space-y-3 w-[150%]">
+        <div className="space-y-3">
           {teamMatches.map((match) => {
             const isWin = Number(match.our_points) > Number(match.their_points);
             return (
               <div
                 key={match.id}
-                className="flex rounded-md overflow-hidden"
+                className="flex rounded-md overflow-hidden w-full"
               >
-                <div className={`w-12 flex items-center justify-center text-lg font-bold ${
+                <div className={`w-16 flex items-center justify-center text-lg font-bold ${
                   isWin 
                     ? "bg-emerald-500 text-emerald-50" 
                     : "bg-red-500 text-red-50"
@@ -109,15 +155,18 @@ export default function TeamMatches() {
                   {isWin ? "W" : "L"}
                 </div>
                 <div className="flex-1 border border-l-0 border-input p-4 hover:bg-accent/5 transition-colors rounded-r-md">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-lg font-medium">
-                      vs {match.opponent_name}
-                    </h3>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center">
+                      <h3 className="text-lg font-medium">
+                        vs {match.opponent_name}
+                      </h3>
+                      {getScoreDisplay(match)}
+                    </div>
                     <span className="text-sm text-muted-foreground">
                       {formatMatchDate(match.match_date)}
                     </span>
                   </div>
-                  {getScoreDisplay(match)}
+                  {getPositionResults(match)}
                 </div>
               </div>
             );
