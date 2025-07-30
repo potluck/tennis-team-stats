@@ -39,6 +39,7 @@ interface PlayerStats {
   doublesWins: number;
   doublesLosses: number;
   doublesTies: number;
+  pointsEarned: number;
 }
 
 interface PairStats {
@@ -51,9 +52,18 @@ interface PairStats {
   ties: number;
   totalMatches: number;
   winPercentage: number;
+  pointsEarned: number;
 }
 
 type ViewMode = "all" | "singles" | "doubles";
+
+function getMatchPoints(pos: number, isSingles: boolean): number {
+  if (isSingles) {
+    return pos === 1 ? 5 : 4;
+  } else {
+    return pos === 1 ? 5 : pos === 2 ? 4 : 3;
+  }
+}
 
 export default function PlayerStatistics() {
   const [matchResults, setMatchResults] = useState<MatchResult[]>([]);
@@ -120,6 +130,7 @@ export default function PlayerStatistics() {
           doublesWins: 0,
           doublesLosses: 0,
           doublesTies: 0,
+          pointsEarned: 0
         });
       }
     };
@@ -136,8 +147,11 @@ export default function PlayerStatistics() {
 
       // Update player1 stats
       player1Stats.totalMatches++;
+      const points = getMatchPoints(result.pos, result.is_singles);
+
       if (result.result === "win") {
         player1Stats.wins++;
+        player1Stats.pointsEarned += points;
         if (result.is_singles) {
           player1Stats.singlesWins++;
         } else {
@@ -152,6 +166,7 @@ export default function PlayerStatistics() {
         }
       } else if (result.result === "tie") {
         player1Stats.ties++;
+        player1Stats.pointsEarned += points / 2;
         if (result.is_singles) {
           player1Stats.singlesTies++;
         } else {
@@ -159,7 +174,7 @@ export default function PlayerStatistics() {
         }
       }
 
-      // If doubles match, update player2 stats as well
+      // If doubles match, update player2 stats
       if (!result.is_singles && result.player2 && result.player2_name) {
         initializePlayer(result.player2, result.player2_name);
         const player2Stats = statsMap.get(result.player2)!;
@@ -168,12 +183,14 @@ export default function PlayerStatistics() {
         if (result.result === "win") {
           player2Stats.wins++;
           player2Stats.doublesWins++;
+          player2Stats.pointsEarned += points;
         } else if (result.result === "loss") {
           player2Stats.losses++;
           player2Stats.doublesLosses++;
         } else if (result.result === "tie") {
           player2Stats.ties++;
           player2Stats.doublesTies++;
+          player2Stats.pointsEarned += points / 2;
         }
       }
     });
@@ -199,8 +216,11 @@ export default function PlayerStatistics() {
           winPercentage: totalMatches > 0 ? (totalPoints / totalMatches) * 100 : 0
         };
       })
-      .filter(stats => stats.totalMatches > 0) // Only show players with relevant matches
+      .filter(stats => stats.totalMatches > 0)
       .sort((a, b) => {
+        if (b.pointsEarned !== a.pointsEarned) {
+          return b.pointsEarned - a.pointsEarned;
+        }
         if (b.winPercentage !== a.winPercentage) {
           return b.winPercentage - a.winPercentage;
         }
@@ -217,7 +237,6 @@ export default function PlayerStatistics() {
     results
       .filter(result => !result.is_singles && result.player2 !== null && result.player2_name !== null)
       .forEach(result => {
-        // Create a unique key for each pair (using smaller ID first to avoid duplicates)
         const key = [result.player1, result.player2!].sort((a, b) => a - b).join('-');
         
         if (!pairsMap.has(key)) {
@@ -230,24 +249,33 @@ export default function PlayerStatistics() {
             losses: 0,
             ties: 0,
             totalMatches: 0,
-            winPercentage: 0
+            winPercentage: 0,
+            pointsEarned: 0
           });
         }
 
         const stats = pairsMap.get(key)!;
         stats.totalMatches++;
 
-        if (result.result === "win") stats.wins++;
-        else if (result.result === "loss") stats.losses++;
-        else if (result.result === "tie") stats.ties++;
+        if (result.result === "win") {
+          stats.wins++;
+          stats.pointsEarned += getMatchPoints(result.pos, false);
+        } else if (result.result === "loss") {
+          stats.losses++;
+        } else if (result.result === "tie") {
+          stats.ties++;
+          stats.pointsEarned += getMatchPoints(result.pos, false) / 2;
+        }
 
-        // Calculate win percentage (counting ties as half wins)
+        // Calculate win percentage
         const totalPoints = stats.wins + stats.ties * 0.5;
         stats.winPercentage = (totalPoints / stats.totalMatches) * 100;
       });
 
-    // Convert to array and sort by win percentage, then by total matches
     const statsArray = Array.from(pairsMap.values()).sort((a, b) => {
+      if (b.pointsEarned !== a.pointsEarned) {
+        return b.pointsEarned - a.pointsEarned;
+      }
       if (b.winPercentage !== a.winPercentage) {
         return b.winPercentage - a.winPercentage;
       }
@@ -335,7 +363,6 @@ export default function PlayerStatistics() {
       {playerStats.length === 0 ? (
         <p className="text-muted-foreground">No match results found.</p>
       ) : viewMode === "doubles" ? (
-        // Doubles pairs table
         <div className="overflow-x-auto rounded-lg border border-border">
           <table className="min-w-full divide-y divide-border">
             <thead>
@@ -351,6 +378,9 @@ export default function PlayerStatistics() {
                 </th>
                 <th scope="col" className="px-6 py-4 text-center text-sm font-semibold">
                   Win %
+                </th>
+                <th scope="col" className="px-6 py-4 text-center text-sm font-semibold">
+                  Points Earned
                 </th>
               </tr>
             </thead>
@@ -382,13 +412,15 @@ export default function PlayerStatistics() {
                       {pair.winPercentage.toFixed(1)}%
                     </span>
                   </td>
+                  <td className="px-6 py-4 text-sm text-center font-medium whitespace-nowrap">
+                    {pair.pointsEarned}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       ) : (
-        // Individual players table
         <div className="overflow-x-auto rounded-lg border border-border">
           <table className="min-w-full divide-y divide-border">
             <thead>
@@ -404,6 +436,9 @@ export default function PlayerStatistics() {
                 </th>
                 <th scope="col" className="px-6 py-4 text-center text-sm font-semibold">
                   Win %
+                </th>
+                <th scope="col" className="px-6 py-4 text-center text-sm font-semibold">
+                  Points Earned
                 </th>
                 {viewMode === "all" && (
                   <>
@@ -445,6 +480,9 @@ export default function PlayerStatistics() {
                     >
                       {player.winPercentage.toFixed(1)}%
                     </span>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-center font-medium whitespace-nowrap">
+                    {player.pointsEarned}
                   </td>
                   {viewMode === "all" && (
                     <>
