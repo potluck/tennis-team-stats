@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 interface Team {
   id: number;
@@ -108,75 +108,7 @@ export default function PlayerStatistics() {
     }
   };
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const [playersResponse, matchesResponse, teamsResponse] = await Promise.all([
-          fetch("/api/get-players"),
-          fetch("/api/get-match-results"),
-          fetch("/api/get-teams")
-        ]);
-
-        if (!playersResponse.ok || !matchesResponse.ok || !teamsResponse.ok) {
-          throw new Error("Failed to fetch data");
-        }
-
-        const [playersData, matchesData, teamsData] = await Promise.all([
-          playersResponse.json(),
-          matchesResponse.json(),
-          teamsResponse.json()
-        ]);
-
-        // Get the first team's name (assuming we're only dealing with one team for now)
-        const team = teamsData.find((t: Team) => t.id === 1);
-        setTeamName(team?.name || "Team");
-        
-        setMatchResults(matchesData);
-        calculatePlayerStats(matchesData);
-        calculatePairStats(matchesData);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "An error occurred");
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchData();
-  }, []);
-
-  const sortStats = <T extends { pointsEarned: number; winPercentage: number; totalMatches: number }>(
-    stats: T[],
-    field: SortField,
-    direction: SortDirection
-  ): T[] => {
-    return [...stats].sort((a, b) => {
-      let comparison = 0;
-      
-      if (field === "points") {
-        comparison = b.pointsEarned - a.pointsEarned;
-      } else {
-        comparison = b.winPercentage - a.winPercentage;
-      }
-
-      // If primary sort is equal, use secondary sort
-      if (comparison === 0) {
-        if (field === "points") {
-          comparison = b.winPercentage - a.winPercentage;
-        } else {
-          comparison = b.pointsEarned - a.pointsEarned;
-        }
-      }
-
-      // If still equal, sort by matches
-      if (comparison === 0) {
-        comparison = b.totalMatches - a.totalMatches;
-      }
-
-      return direction === "desc" ? comparison : -comparison;
-    });
-  };
-
-  const calculatePlayerStats = (results: MatchResult[]) => {
+  const calculatePlayerStats = useCallback((results: MatchResult[]) => {
     const statsMap = new Map<number, PlayerStats>();
 
     // Initialize stats for each player
@@ -289,9 +221,9 @@ export default function PlayerStatistics() {
     );
 
     setPlayerStats(statsArray);
-  };
+  }, [viewMode, sortField, sortDirection]);
 
-  const calculatePairStats = (results: MatchResult[]) => {
+  const calculatePairStats = useCallback((results: MatchResult[]) => {
     const pairsMap = new Map<string, PairStats>();
 
     // Process only doubles matches
@@ -335,15 +267,72 @@ export default function PlayerStatistics() {
 
     const statsArray = sortStats(Array.from(pairsMap.values()), sortField, sortDirection);
     setPairStats(statsArray);
-  };
+  }, [sortField, sortDirection]);
 
   useEffect(() => {
-    // Recalculate stats when view mode, sort field, or direction changes
-    if (matchResults.length > 0) {
-      calculatePlayerStats(matchResults);
-      calculatePairStats(matchResults);
+    async function fetchData() {
+      try {
+        const [matchesResponse, teamsResponse] = await Promise.all([
+          fetch("/api/get-match-results"),
+          fetch("/api/get-teams")
+        ]);
+
+        if (!matchesResponse.ok || !teamsResponse.ok) {
+          throw new Error("Failed to fetch data");
+        }
+
+        const [matchesData, teamsData] = await Promise.all([
+          matchesResponse.json(),
+          teamsResponse.json()
+        ]);
+
+        const team = teamsData.find((t: Team) => t.id === 1);
+        setTeamName(team?.name || "Team");
+        
+        setMatchResults(matchesData);
+        calculatePlayerStats(matchesData);
+        calculatePairStats(matchesData);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "An error occurred");
+      } finally {
+        setLoading(false);
+      }
     }
-  }, [viewMode, matchResults, sortField, sortDirection]);
+
+    fetchData();
+  }, [calculatePlayerStats, calculatePairStats]);
+
+  const sortStats = <T extends { pointsEarned: number; winPercentage: number; totalMatches: number }>(
+    stats: T[],
+    field: SortField,
+    direction: SortDirection
+  ): T[] => {
+    return [...stats].sort((a, b) => {
+      let comparison = 0;
+      
+      if (field === "points") {
+        comparison = b.pointsEarned - a.pointsEarned;
+      } else {
+        comparison = b.winPercentage - a.winPercentage;
+      }
+
+      // If primary sort is equal, use secondary sort
+      if (comparison === 0) {
+        if (field === "points") {
+          comparison = b.winPercentage - a.winPercentage;
+        } else {
+          comparison = b.pointsEarned - a.pointsEarned;
+        }
+      }
+
+      // If still equal, sort by matches
+      if (comparison === 0) {
+        comparison = b.totalMatches - a.totalMatches;
+      }
+
+      return direction === "desc" ? comparison : -comparison;
+    });
+  };
 
   const formatMatchDate = (dateString: string): string => {
     try {
@@ -362,6 +351,17 @@ export default function PlayerStatistics() {
       return dateString;
     }
   };
+
+  const getDisplayScore = useCallback((player: PlayerStats) => {
+    switch (viewMode) {
+      case "singles":
+        return `${player.singlesWins}-${player.singlesLosses}-${player.singlesTies}`;
+      case "doubles":
+        return `${player.doublesWins}-${player.doublesLosses}-${player.doublesTies}`;
+      case "all":
+        return `${player.wins}-${player.losses}-${player.ties}`;
+    }
+  }, [viewMode]);
 
   const renderSortableHeader = (title: string, field: SortField) => (
     <th 
@@ -553,11 +553,7 @@ export default function PlayerStatistics() {
                     {player.totalMatches}
                   </td>
                   <td className="px-6 py-4 text-sm text-center font-medium whitespace-nowrap">
-                    {viewMode === "singles" 
-                      ? `${player.singlesWins}-${player.singlesLosses}-${player.singlesTies}`
-                      : viewMode === "doubles"
-                      ? `${player.doublesWins}-${player.doublesLosses}-${player.doublesTies}`
-                      : `${player.wins}-${player.losses}-${player.ties}`}
+                    {getDisplayScore(player)}
                   </td>
                   <td className="px-6 py-4 text-sm text-center whitespace-nowrap">
                     <span

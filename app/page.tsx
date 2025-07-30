@@ -7,7 +7,7 @@ export default function Home() {
     <div className="min-h-screen p-8">
       <main className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold">Tennis Team Stats</h1>
+          <h1 className="text-5xl font-bold">Tennis Team Stats</h1>
           <Link
             href="/enter-match"
             className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"

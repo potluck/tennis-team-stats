@@ -7,12 +7,27 @@ interface TeamMatch {
   opponent_name: string;
   team_id: number;
   match_date: string;
+  our_points: number;
+  their_points: number;
 }
 
 export default function TeamMatches() {
   const [teamMatches, setTeamMatches] = useState<TeamMatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const formatMatchDate = (dateString: string): string => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+      });
+    } catch {
+      return dateString;
+    }
+  };
 
   useEffect(() => {
     async function fetchTeamMatches() {
@@ -22,12 +37,13 @@ export default function TeamMatches() {
           throw new Error("Failed to fetch team matches");
         }
         const data = await response.json();
-        // Sort by date in descending order (most recent first)
-        const sortedData = data.sort(
-          (a: TeamMatch, b: TeamMatch) =>
-            new Date(b.match_date).getTime() - new Date(a.match_date).getTime()
-        );
-        setTeamMatches(sortedData);
+        // Ensure points are numbers
+        const matchesWithNumberPoints = data.map((match: any) => ({
+          ...match,
+          our_points: Number(match.our_points),
+          their_points: Number(match.their_points)
+        }));
+        setTeamMatches(matchesWithNumberPoints);
       } catch (err) {
         setError(err instanceof Error ? err.message : "An error occurred");
       } finally {
@@ -56,28 +72,56 @@ export default function TeamMatches() {
     );
   }
 
+  const getScoreDisplay = (match: TeamMatch) => {
+    const isWin = Number(match.our_points) > Number(match.their_points);
+    
+    return (
+      <div className="flex items-center gap-2">
+        <span className={`text-sm font-medium ${
+          isWin ? "text-emerald-500" : "text-red-500"
+        }`}>
+          {match.our_points} - {match.their_points}
+        </span>
+        <span className="text-xs text-muted-foreground">points</span>
+      </div>
+    );
+  };
+
   return (
     <div className="bg-background text-foreground rounded-lg shadow-md p-6">
       <h2 className="text-2xl font-semibold mb-4">Team Matches</h2>
       {teamMatches.length === 0 ? (
         <p className="text-muted-foreground">No team matches found.</p>
       ) : (
-        <div className="space-y-3">
-          {teamMatches.map((match) => (
-            <div
-              key={match.id}
-              className="border border-input rounded-md p-4 hover:bg-accent/5 transition-colors"
-            >
-              <h3 className="text-lg font-medium">
-                vs {match.opponent_name}
-              </h3>
-              <p className="text-sm text-muted-foreground">Match ID: {match.id}</p>
-              <p className="text-sm text-muted-foreground">Team ID: {match.team_id}</p>
-              <p className="text-sm text-muted-foreground">
-                Date: {new Date(match.match_date).toLocaleDateString()}
-              </p>
-            </div>
-          ))}
+        <div className="space-y-3 w-[150%]">
+          {teamMatches.map((match) => {
+            const isWin = Number(match.our_points) > Number(match.their_points);
+            return (
+              <div
+                key={match.id}
+                className="flex rounded-md overflow-hidden"
+              >
+                <div className={`w-12 flex items-center justify-center text-lg font-bold ${
+                  isWin 
+                    ? "bg-emerald-500 text-emerald-50" 
+                    : "bg-red-500 text-red-50"
+                }`}>
+                  {isWin ? "W" : "L"}
+                </div>
+                <div className="flex-1 border border-l-0 border-input p-4 hover:bg-accent/5 transition-colors rounded-r-md">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-lg font-medium">
+                      vs {match.opponent_name}
+                    </h3>
+                    <span className="text-sm text-muted-foreground">
+                      {formatMatchDate(match.match_date)}
+                    </span>
+                  </div>
+                  {getScoreDisplay(match)}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
