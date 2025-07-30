@@ -56,6 +56,8 @@ interface PairStats {
 }
 
 type ViewMode = "all" | "singles" | "doubles";
+type SortField = "points" | "winPercentage";
+type SortDirection = "asc" | "desc";
 
 function getMatchPoints(pos: number, isSingles: boolean): number {
   if (isSingles) {
@@ -63,6 +65,25 @@ function getMatchPoints(pos: number, isSingles: boolean): number {
   } else {
     return pos === 1 ? 5 : pos === 2 ? 4 : 3;
   }
+}
+
+function SortIcon({ direction }: { direction: SortDirection }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      className={`w-4 h-4 ml-1 inline-block transition-transform ${
+        direction === "asc" ? "rotate-180" : ""
+      }`}
+    >
+      <path
+        fillRule="evenodd"
+        d="M10 3a.75.75 0 01.75.75v10.638l3.96-4.158a.75.75 0 111.08 1.04l-5.25 5.5a.75.75 0 01-1.08 0l-5.25-5.5a.75.75 0 111.08-1.04l3.96 4.158V3.75A.75.75 0 0110 3z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
 }
 
 export default function PlayerStatistics() {
@@ -73,6 +94,19 @@ export default function PlayerStatistics() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("all");
+  const [sortField, setSortField] = useState<SortField>("points");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      // If clicking the same field, toggle direction
+      setSortDirection(sortDirection === "desc" ? "asc" : "desc");
+    } else {
+      // If clicking a new field, set it with default desc direction
+      setSortField(field);
+      setSortDirection("desc");
+    }
+  };
 
   useEffect(() => {
     async function fetchData() {
@@ -109,6 +143,38 @@ export default function PlayerStatistics() {
 
     fetchData();
   }, []);
+
+  const sortStats = <T extends { pointsEarned: number; winPercentage: number; totalMatches: number }>(
+    stats: T[],
+    field: SortField,
+    direction: SortDirection
+  ): T[] => {
+    return [...stats].sort((a, b) => {
+      let comparison = 0;
+      
+      if (field === "points") {
+        comparison = b.pointsEarned - a.pointsEarned;
+      } else {
+        comparison = b.winPercentage - a.winPercentage;
+      }
+
+      // If primary sort is equal, use secondary sort
+      if (comparison === 0) {
+        if (field === "points") {
+          comparison = b.winPercentage - a.winPercentage;
+        } else {
+          comparison = b.pointsEarned - a.pointsEarned;
+        }
+      }
+
+      // If still equal, sort by matches
+      if (comparison === 0) {
+        comparison = b.totalMatches - a.totalMatches;
+      }
+
+      return direction === "desc" ? comparison : -comparison;
+    });
+  };
 
   const calculatePlayerStats = (results: MatchResult[]) => {
     const statsMap = new Map<number, PlayerStats>();
@@ -196,36 +262,31 @@ export default function PlayerStatistics() {
     });
 
     // Calculate win percentages and filter based on view mode
-    const statsArray = Array.from(statsMap.values())
-      .map(stats => {
-        const relevantWins = viewMode === "singles" ? stats.singlesWins :
-                           viewMode === "doubles" ? stats.doublesWins :
-                           stats.wins;
-        const relevantLosses = viewMode === "singles" ? stats.singlesLosses :
-                             viewMode === "doubles" ? stats.doublesLosses :
-                             stats.losses;
-        const relevantTies = viewMode === "singles" ? stats.singlesTies :
-                           viewMode === "doubles" ? stats.doublesTies :
-                           stats.ties;
-        const totalMatches = relevantWins + relevantLosses + relevantTies;
-        const totalPoints = relevantWins + relevantTies * 0.5;
-        
-        return {
-          ...stats,
-          totalMatches,
-          winPercentage: totalMatches > 0 ? (totalPoints / totalMatches) * 100 : 0
-        };
-      })
-      .filter(stats => stats.totalMatches > 0)
-      .sort((a, b) => {
-        if (b.pointsEarned !== a.pointsEarned) {
-          return b.pointsEarned - a.pointsEarned;
-        }
-        if (b.winPercentage !== a.winPercentage) {
-          return b.winPercentage - a.winPercentage;
-        }
-        return b.totalMatches - a.totalMatches;
-      });
+    const statsArray = sortStats(
+      Array.from(statsMap.values())
+        .map(stats => {
+          const relevantWins = viewMode === "singles" ? stats.singlesWins :
+                             viewMode === "doubles" ? stats.doublesWins :
+                             stats.wins;
+          const relevantLosses = viewMode === "singles" ? stats.singlesLosses :
+                               viewMode === "doubles" ? stats.doublesLosses :
+                               stats.losses;
+          const relevantTies = viewMode === "singles" ? stats.singlesTies :
+                             viewMode === "doubles" ? stats.doublesTies :
+                             stats.ties;
+          const totalMatches = relevantWins + relevantLosses + relevantTies;
+          const totalPoints = relevantWins + relevantTies * 0.5;
+          
+          return {
+            ...stats,
+            totalMatches,
+            winPercentage: totalMatches > 0 ? (totalPoints / totalMatches) * 100 : 0
+          };
+        })
+        .filter(stats => stats.totalMatches > 0),
+      sortField,
+      sortDirection
+    );
 
     setPlayerStats(statsArray);
   };
@@ -272,25 +333,17 @@ export default function PlayerStatistics() {
         stats.winPercentage = (totalPoints / stats.totalMatches) * 100;
       });
 
-    const statsArray = Array.from(pairsMap.values()).sort((a, b) => {
-      if (b.pointsEarned !== a.pointsEarned) {
-        return b.pointsEarned - a.pointsEarned;
-      }
-      if (b.winPercentage !== a.winPercentage) {
-        return b.winPercentage - a.winPercentage;
-      }
-      return b.totalMatches - a.totalMatches;
-    });
-
+    const statsArray = sortStats(Array.from(pairsMap.values()), sortField, sortDirection);
     setPairStats(statsArray);
   };
 
   useEffect(() => {
-    // Recalculate stats when view mode changes
+    // Recalculate stats when view mode, sort field, or direction changes
     if (matchResults.length > 0) {
       calculatePlayerStats(matchResults);
+      calculatePairStats(matchResults);
     }
-  }, [viewMode, matchResults]);
+  }, [viewMode, matchResults, sortField, sortDirection]);
 
   const formatMatchDate = (dateString: string): string => {
     try {
@@ -309,6 +362,21 @@ export default function PlayerStatistics() {
       return dateString;
     }
   };
+
+  const renderSortableHeader = (title: string, field: SortField) => (
+    <th 
+      scope="col" 
+      className={`px-6 py-4 text-center text-sm cursor-pointer hover:text-primary transition-colors ${
+        sortField === field ? "text-primary font-bold" : "font-semibold"
+      }`}
+      onClick={() => handleSort(field)}
+    >
+      <div className="flex items-center justify-center gap-1">
+        {title}
+        {sortField === field && <SortIcon direction={sortDirection} />}
+      </div>
+    </th>
+  );
 
   if (loading) {
     return (
@@ -338,13 +406,40 @@ export default function PlayerStatistics() {
       </div>
 
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-2xl font-semibold">
-          {viewMode === "doubles" ? "Doubles Statistics" :
-           viewMode === "singles" ? "Singles Statistics" :
-           "Player Statistics"}
-        </h3>
+        <div className="flex items-center gap-4">
+          <h3 className="text-2xl font-semibold">
+            {viewMode === "doubles" ? "Doubles Statistics" :
+             viewMode === "singles" ? "Singles Statistics" :
+             "Player Statistics"}
+          </h3>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span>Sort by:</span>
+            <div className="flex p-0.5 bg-secondary rounded-lg">
+              <button
+                onClick={() => handleSort("points")}
+                className={`px-3 py-1 rounded-md transition-colors ${
+                  sortField === "points"
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-secondary/80"
+                }`}
+              >
+                Points
+              </button>
+              <button
+                onClick={() => handleSort("winPercentage")}
+                className={`px-3 py-1 rounded-md transition-colors ${
+                  sortField === "winPercentage"
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-secondary/80"
+                }`}
+              >
+                Win %
+              </button>
+            </div>
+          </div>
+        </div>
         <div className="flex p-0.5 bg-secondary rounded-lg">
-          {(["all", "singles", "doubles"] as ViewMode[]).map((mode) => (
+          {(["all", "singles", "doubles"] as const).map((mode) => (
             <button
               key={mode}
               onClick={() => setViewMode(mode)}
@@ -376,12 +471,8 @@ export default function PlayerStatistics() {
                 <th scope="col" className="px-6 py-4 text-center text-sm font-semibold">
                   W-L-T
                 </th>
-                <th scope="col" className="px-6 py-4 text-center text-sm font-semibold">
-                  Win %
-                </th>
-                <th scope="col" className="px-6 py-4 text-center text-sm font-semibold">
-                  Points Earned
-                </th>
+                {renderSortableHeader("Win %", "winPercentage")}
+                {renderSortableHeader("Points Earned", "points")}
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -399,9 +490,11 @@ export default function PlayerStatistics() {
                   <td className="px-6 py-4 text-sm text-center font-medium whitespace-nowrap">
                     {pair.wins}-{pair.losses}-{pair.ties}
                   </td>
-                  <td className="px-6 py-4 text-sm text-center whitespace-nowrap">
+                  <td className={`px-6 py-4 text-sm text-center whitespace-nowrap ${
+                    sortField === "winPercentage" ? "font-bold" : ""
+                  }`}>
                     <span
-                      className={`font-medium ${
+                      className={`${
                         pair.winPercentage >= 70
                           ? "text-primary"
                           : pair.winPercentage >= 50
@@ -412,7 +505,9 @@ export default function PlayerStatistics() {
                       {pair.winPercentage.toFixed(1)}%
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-center font-medium whitespace-nowrap">
+                  <td className={`px-6 py-4 text-sm text-center font-medium whitespace-nowrap ${
+                    sortField === "points" ? "font-bold" : ""
+                  }`}>
                     {pair.pointsEarned}
                   </td>
                 </tr>
@@ -434,12 +529,8 @@ export default function PlayerStatistics() {
                 <th scope="col" className="px-6 py-4 text-center text-sm font-semibold">
                   W-L-T
                 </th>
-                <th scope="col" className="px-6 py-4 text-center text-sm font-semibold">
-                  Win %
-                </th>
-                <th scope="col" className="px-6 py-4 text-center text-sm font-semibold">
-                  Points Earned
-                </th>
+                {renderSortableHeader("Win %", "winPercentage")}
+                {renderSortableHeader("Points Earned", "points")}
                 {viewMode === "all" && (
                   <>
                     <th scope="col" className="px-6 py-4 text-center text-sm font-semibold">
@@ -539,3 +630,4 @@ export default function PlayerStatistics() {
     </div>
   );
 }
+
