@@ -2,6 +2,11 @@
 
 import { useState, useEffect } from "react";
 
+interface Team {
+  id: number;
+  name: string;
+}
+
 interface MatchResult {
   id: number;
   team_match_id: number;
@@ -39,19 +44,35 @@ interface PlayerStats {
 export default function PlayerStatistics() {
   const [matchResults, setMatchResults] = useState<MatchResult[]>([]);
   const [playerStats, setPlayerStats] = useState<PlayerStats[]>([]);
+  const [teamName, setTeamName] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchMatchResults() {
+    async function fetchData() {
       try {
-        const response = await fetch("/api/get-match-results");
-        if (!response.ok) {
-          throw new Error("Failed to fetch match results");
+        const [playersResponse, matchesResponse, teamsResponse] = await Promise.all([
+          fetch("/api/get-players"),
+          fetch("/api/get-match-results"),
+          fetch("/api/get-teams")
+        ]);
+
+        if (!playersResponse.ok || !matchesResponse.ok || !teamsResponse.ok) {
+          throw new Error("Failed to fetch data");
         }
-        const data = await response.json();
-        setMatchResults(data);
-        calculatePlayerStats(data);
+
+        const [playersData, matchesData, teamsData] = await Promise.all([
+          playersResponse.json(),
+          matchesResponse.json(),
+          teamsResponse.json()
+        ]);
+
+        // Get the first team's name (assuming we're only dealing with one team for now)
+        const team = teamsData.find((t: Team) => t.id === 1);
+        setTeamName(team?.name || "Team");
+        
+        setMatchResults(matchesData);
+        calculatePlayerStats(matchesData);
       } catch (err) {
         setError(err instanceof Error ? err.message : "An error occurred");
       } finally {
@@ -59,7 +80,7 @@ export default function PlayerStatistics() {
       }
     }
 
-    fetchMatchResults();
+    fetchData();
   }, []);
 
   const calculatePlayerStats = (results: MatchResult[]) => {
@@ -197,7 +218,12 @@ export default function PlayerStatistics() {
 
   return (
     <div className="bg-background text-foreground rounded-lg shadow-md p-6">
-      <h2 className="text-2xl font-semibold mb-6">Player Statistics</h2>
+      <div className="mb-8">
+        <h2 className="text-4xl font-bold text-primary mb-2">{teamName}</h2>
+        <div className="h-1 w-20 bg-primary rounded"></div>
+      </div>
+
+      <h3 className="text-2xl font-semibold mb-6">Player Statistics</h3>
 
       {playerStats.length === 0 ? (
         <p className="text-muted-foreground">No match results found.</p>
