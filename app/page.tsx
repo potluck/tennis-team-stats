@@ -1,6 +1,5 @@
 import PlayerStatistics from "./components/PlayerStatistics";
 import TeamMatches from "./components/TeamMatches";
-import { ThemeToggle } from "./components/ThemeToggle";
 import Link from "next/link";
 
 export default function Home() {
@@ -9,15 +8,12 @@ export default function Home() {
       <main className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold">Tennis Team Stats</h1>
-          <div className="flex items-center gap-4">
-            <Link
-              href="/enter-match"
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
-            >
-              Enter Match Result
-            </Link>
-            <ThemeToggle />
-          </div>
+          <Link
+            href="/enter-match"
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+          >
+            Enter Match Result
+          </Link>
         </div>
 
         <PlayerStatistics />

@@ -1,5 +1,4 @@
 import MatchResultInput from "../components/MatchResultInput";
-import { ThemeToggle } from "../components/ThemeToggle";
 import Link from "next/link";
 
 export default function EnterMatch() {
@@ -16,7 +15,6 @@ export default function EnterMatch() {
             </Link>
             <h1 className="text-3xl font-bold">Enter Match Result</h1>
           </div>
-          <ThemeToggle />
         </div>
 
         <MatchResultInput />
