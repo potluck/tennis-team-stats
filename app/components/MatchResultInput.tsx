@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 
 interface Player {
   id: number;
@@ -597,7 +598,15 @@ export default function MatchResultInput() {
 
       {success && (
         <div className="mb-4 p-3 bg-primary/10 border border-primary text-primary rounded">
-          {success}
+          <div className="flex items-center justify-between">
+            <p>{success}</p>
+            <Link
+              href="/"
+              className="text-sm underline hover:text-primary/80 transition-colors"
+            >
+              Back to Dashboard
+            </Link>
+          </div>
         </div>
       )}
 
