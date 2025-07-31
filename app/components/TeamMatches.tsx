@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import EditMatchModal from "./EditMatchModal";
 
-interface PositionResult {
+export interface PositionResult {
   is_singles: boolean;
   pos: number;
   result: "win" | "loss" | "tie";
@@ -11,6 +12,7 @@ interface PositionResult {
   set1_score: string;
   set2_score: string;
   set3_score: string | null;
+  incomplete_reason: "timeout" | "injury" | "default" | null;
 }
 
 interface TeamMatch {
@@ -27,27 +29,51 @@ export default function TeamMatches() {
   const [teamMatches, setTeamMatches] = useState<TeamMatch[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [editingMatch, setEditingMatch] = useState<number | null>(null);
+
+  const fetchTeamMatches = async () => {
+    try {
+      const response = await fetch("/api/get-team-matches");
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      setTeamMatches(data);
+      setError(null);
+    } catch (err) {
+      console.error("Error fetching team matches:", err);
+      setError(err instanceof Error ? err.message : "Failed to fetch team matches");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    async function fetchTeamMatches() {
-      try {
-        const response = await fetch("/api/get-team-matches");
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        setTeamMatches(data);
-        setError(null);
-      } catch (err) {
-        console.error("Error fetching team matches:", err);
-        setError(err instanceof Error ? err.message : "Failed to fetch team matches");
-      } finally {
-        setLoading(false);
-      }
-    }
     fetchTeamMatches();
   }, []);
+
+  const handleSaveScores = async (matchId: number, results: PositionResult[]) => {
+    try {
+      const response = await fetch("/api/update-match-scores", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ matchId, results }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update match scores");
+      }
+
+      // Refresh the matches data
+      await fetchTeamMatches();
+    } catch (error) {
+      console.error("Error saving match scores:", error);
+      throw error; // Re-throw to be handled by the modal
+    }
+  };
 
   const formatMatchDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -70,11 +96,16 @@ export default function TeamMatches() {
   };
 
   const getSetScores = (pos: PositionResult) => {
-    const scores = [pos.set1_score, pos.set2_score];
-    if (pos.set3_score) {
-      scores.push(pos.set3_score);
+    // If there's an explicit default reason or no scores, show DEFAULT
+    if (pos.incomplete_reason === "default" || (!pos.set1_score && !pos.set2_score && !pos.set3_score)) {
+      return "DEFAULT";
     }
-    return scores.join(", ");
+    
+    const scores = [pos.set1_score, pos.set2_score, pos.set3_score]
+      .filter(score => score && score.trim() !== "")
+      .join(", ");
+      
+    return scores;
   };
 
   const getPositionResults = (match: TeamMatch) => {
@@ -161,6 +192,26 @@ export default function TeamMatches() {
                         vs {match.opponent_name}
                       </h3>
                       {getScoreDisplay(match)}
+                      <button
+                        onClick={() => setEditingMatch(match.id)}
+                        className="ml-3 text-muted-foreground hover:text-foreground transition-colors"
+                        title="Edit match scores"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+                          <path d="m15 5 4 4"/>
+                        </svg>
+                      </button>
                     </div>
                     <span className="text-sm text-muted-foreground">
                       {formatMatchDate(match.match_date)}
@@ -171,6 +222,15 @@ export default function TeamMatches() {
               </div>
             );
           })}
+          {editingMatch !== null && (
+            <EditMatchModal
+              isOpen={true}
+              onClose={() => setEditingMatch(null)}
+              matchId={editingMatch}
+              positionResults={teamMatches.find(m => m.id === editingMatch)?.position_results || []}
+              onSave={handleSaveScores}
+            />
+          )}
         </div>
       )}
     </div>
