@@ -35,6 +35,7 @@ export default function TeamMatches({ onAddMatch, onMatchUpdate }: TeamMatchesPr
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [editingMatch, setEditingMatch] = useState<number | null>(null);
+  const [expandedMatches, setExpandedMatches] = useState<Set<number>>(new Set());
 
   const fetchMatches = async () => {
     try {
@@ -203,6 +204,118 @@ export default function TeamMatches({ onAddMatch, onMatchUpdate }: TeamMatchesPr
     }
   };
 
+  const toggleMatchExpansion = (matchId: number) => {
+    setExpandedMatches(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(matchId)) {
+        newSet.delete(matchId);
+      } else {
+        newSet.add(matchId);
+      }
+      return newSet;
+    });
+  };
+
+  const getCompactMatchView = (match: TeamMatch) => {
+    const result = getMatchResult(match);
+    
+    const getPositionLabel = (pos: PositionResult) => {
+      const prefix = pos.is_singles ? "S" : "D";
+      return `${prefix}${pos.pos}`;
+    };
+
+    const getPositionColor = (pos: PositionResult) => {
+      switch (pos.result) {
+        case "win": return "text-emerald-600 font-semibold";
+        case "loss": return "text-red-600 font-semibold";
+        case "tie": return "text-gray-600 font-semibold";
+        default: return "text-gray-500 font-semibold";
+      }
+    };
+    
+    return (
+      <div className="grid grid-cols-3 items-center w-full p-4">
+        <div className="flex items-center gap-3">
+          <div className={`w-8 h-8 flex items-center justify-center text-sm font-bold rounded ${result.bgClass}`}>
+            {result.letter}
+          </div>
+          <div>
+            <div className="font-semibold text-sm">vs {match.opponent_name}</div>
+            <div className="text-xs text-muted-foreground">{formatMatchDate(match.match_date)}</div>
+          </div>
+        </div>
+        <div className="flex justify-center">
+          <div className="grid grid-cols-2 grid-rows-3 grid-flow-col gap-2 max-w-xs">
+            {match.position_results
+              .filter(pos => pos.is_singles)
+              .map((pos, index) => (
+                <div
+                  key={`singles-${index}`}
+                  className={`text-xs ${getPositionColor(pos)}`}
+                  title={`${getPositionLabel(pos)}: ${pos.result}`}
+                >
+                  {getPositionLabel(pos)}
+                </div>
+              ))}
+            {match.position_results
+              .filter(pos => !pos.is_singles)
+              .map((pos, index) => (
+                <div
+                  key={`doubles-${index}`}
+                  className={`text-xs ${getPositionColor(pos)}`}
+                  title={`${getPositionLabel(pos)}: ${pos.result}`}
+                >
+                  {getPositionLabel(pos)}
+                </div>
+              ))}
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-3">
+          <div className="text-right">
+            <div className="text-sm font-medium">{getScoreDisplay(match)}</div>
+          </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditingMatch(match.id);
+            }}
+            className="p-1 text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-md transition-colors"
+            title="Edit match scores"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+              <path d="m15 5 4 4"/>
+            </svg>
+          </button>
+          <button
+            onClick={() => toggleMatchExpansion(match.id)}
+            className="p-1 text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-md transition-colors"
+            title="Expand match details"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="bg-background text-foreground rounded-lg border border-border p-4 sm:p-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-4">
@@ -229,53 +342,82 @@ export default function TeamMatches({ onAddMatch, onMatchUpdate }: TeamMatchesPr
       ) : (
         <div className="space-y-4">
           {teamMatches.map((match) => {
+            const isExpanded = expandedMatches.has(match.id);
             const result = getMatchResult(match);
+            
             return (
               <div
                 key={match.id}
-                className="flex flex-col sm:flex-row rounded-lg overflow-hidden w-full border border-border hover:border-primary/50 transition-all duration-200 hover:shadow-md"
+                className="rounded-lg border border-border hover:border-primary/50 transition-all duration-200 hover:shadow-md overflow-hidden"
               >
-                <div className={`w-full sm:w-16 h-12 sm:h-auto flex items-center justify-center text-lg sm:text-xl font-bold ${result.bgClass}`}>
-                  {result.letter}
-                </div>
-                <div className="flex-1 p-4 sm:p-6 hover:bg-accent/5 transition-colors">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-base sm:text-lg font-semibold">
-                          vs {match.opponent_name}
-                        </h3>
-                        {getScoreDisplay(match)}
-                        <button
-                          onClick={() => setEditingMatch(match.id)}
-                          className="p-1 text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-md transition-colors"
-                          title="Edit match scores"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="16"
-                            height="16"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
-                            <path d="m15 5 4 4"/>
-                          </svg>
-                        </button>
-                      </div>
+                {isExpanded ? (
+                  // Expanded view - keep the original format exactly as it was
+                  <div className="flex flex-col sm:flex-row rounded-lg overflow-hidden w-full">
+                    <div className={`w-full sm:w-16 h-12 sm:h-auto flex items-center justify-center text-lg sm:text-xl font-bold ${result.bgClass}`}>
+                      {result.letter}
                     </div>
-                    <div className="flex items-center justify-between sm:justify-end gap-2">
-                      <span className="text-sm text-muted-foreground">
-                        {formatMatchDate(match.match_date)}
-                      </span>
+                    <div className="flex-1 p-4 sm:p-6 hover:bg-accent/5 transition-colors">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-base sm:text-lg font-semibold">
+                              vs {match.opponent_name}
+                            </h3>
+                            {getScoreDisplay(match)}
+                            <button
+                              onClick={() => setEditingMatch(match.id)}
+                              className="p-1 text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-md transition-colors"
+                              title="Edit match scores"
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="16"
+                                height="16"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+                                <path d="m15 5 4 4"/>
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => toggleMatchExpansion(match.id)}
+                              className="p-1 text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-md transition-colors"
+                              title="Collapse match details"
+                            >
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between sm:justify-end gap-2">
+                          <span className="text-sm text-muted-foreground">
+                            {formatMatchDate(match.match_date)}
+                          </span>
+                        </div>
+                      </div>
+                      {getPositionResults(match)}
                     </div>
                   </div>
-                  {getPositionResults(match)}
-                </div>
+                ) : (
+                  // Collapsed view - show compact version
+                  <div 
+                    className="cursor-pointer hover:bg-accent/5 transition-colors"
+                    onClick={() => toggleMatchExpansion(match.id)}
+                  >
+                    {getCompactMatchView(match)}
+                  </div>
+                )}
               </div>
             );
           })}
