@@ -18,6 +18,32 @@ const getMatchPointsSQL = `
   $$ LANGUAGE plpgsql;
 `;
 
+interface CreateTeamMatchRequest {
+  opponent_name: string;
+  match_date: string;
+}
+
+export async function POST(request: Request) {
+  try {
+    const { opponent_name, match_date } = await request.json() as CreateTeamMatchRequest;
+
+    // Insert the new team match
+    const result = await sql`
+      INSERT INTO team_matches (opponent_name, match_date)
+      VALUES (${opponent_name}, ${match_date})
+      RETURNING id
+    `;
+
+    return NextResponse.json(result.rows[0]);
+  } catch (error) {
+    console.error("Failed to create team match. Full error:", error);
+    if (error instanceof Error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ error: "An unknown error occurred" }, { status: 500 });
+  }
+}
+
 export async function GET() {
   try {
     // Create the function if it doesn't exist
@@ -88,6 +114,37 @@ export async function GET() {
     return NextResponse.json(result.rows);
   } catch (error) {
     console.error("Failed to get team matches. Full error:", error);
+    if (error instanceof Error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ error: "An unknown error occurred" }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const matchId = searchParams.get('id');
+
+    if (!matchId) {
+      return NextResponse.json({ error: "Match ID is required" }, { status: 400 });
+    }
+
+    // Delete match results first (due to foreign key constraint)
+    await sql`
+      DELETE FROM match_results 
+      WHERE team_match_id = ${matchId}
+    `;
+
+    // Then delete the team match
+    await sql`
+      DELETE FROM team_matches 
+      WHERE id = ${matchId}
+    `;
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Failed to delete team match. Full error:", error);
     if (error instanceof Error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }

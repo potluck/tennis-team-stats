@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect } from "react";
 import type { PositionResult } from "./TeamMatches";
 
@@ -6,13 +8,10 @@ interface Player {
   name: string;
 }
 
-interface EditMatchModalProps {
+interface EnterMatchModalProps {
   isOpen: boolean;
   onClose: () => void;
-  matchId: number;
-  positionResults: PositionResult[];
-  onSave: (matchId: number, updatedResults: PositionResult[]) => Promise<void>;
-  onDelete?: () => void; // Optional callback for parent component to refresh data
+  onSave: (opponentName: string, matchDate: string, results: PositionResult[]) => Promise<void>;
 }
 
 interface ScoreInputProps {
@@ -75,14 +74,45 @@ const MATCH_RESULTS = [
   { value: "tie", label: "Tie" },
 ] as const;
 
-export default function EditMatchModal({ isOpen, onClose, matchId, positionResults, onSave, onDelete }: EditMatchModalProps) {
+export default function EnterMatchModal({ isOpen, onClose, onSave }: EnterMatchModalProps) {
   const [results, setResults] = useState<PositionResult[]>([]);
   const [isSaving, setIsSaving] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-  const [originalResults, setOriginalResults] = useState<PositionResult[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
+  const [opponentName, setOpponentName] = useState("");
+  const [matchDate, setMatchDate] = useState(new Date().toISOString().split('T')[0]); // Default to today
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+
+  const hasUnsavedChanges = (): boolean => {
+    // Check if opponent name has been entered
+    if (opponentName.trim()) return true;
+
+    // Check if date has been changed from today
+    const today = new Date().toISOString().split('T')[0];
+    if (matchDate !== today) return true;
+
+    // Check if any result has been modified
+    return results.some(result => (
+      result.player1 || 
+      result.player2 || 
+      result.set1_score || 
+      result.set2_score || 
+      result.set3_score ||
+      result.incomplete_reason
+    ));
+  };
+
+  const handleClose = () => {
+    if (hasUnsavedChanges()) {
+      setShowCancelConfirm(true);
+    } else {
+      onClose();
+    }
+  };
+
+  const handleConfirmClose = () => {
+    setShowCancelConfirm(false);
+    onClose();
+  };
 
   useEffect(() => {
     // Fetch available players
@@ -102,26 +132,22 @@ export default function EditMatchModal({ isOpen, onClose, matchId, positionResul
   }, []);
 
   useEffect(() => {
-    // Initialize results with all positions, using existing data where available
-    const initialResults = DEFAULT_POSITIONS.map(defaultPos => {
-      const existingResult = positionResults.find(
-        r => r.is_singles === defaultPos.is_singles && r.pos === defaultPos.pos
-      );
-      return {
-        is_singles: defaultPos.is_singles!,
-        pos: defaultPos.pos!,
-        result: existingResult?.result || "win",
-        player1: existingResult?.player1 || "",
-        player2: existingResult?.player2 || "",
-        set1_score: existingResult?.set1_score || "",
-        set2_score: existingResult?.set2_score || "",
-        set3_score: existingResult?.set3_score || "",
-        incomplete_reason: existingResult?.incomplete_reason || null,
-      } as PositionResult;
-    });
+    // Initialize results with default positions
+    const initialResults = DEFAULT_POSITIONS.map(defaultPos => ({
+      is_singles: defaultPos.is_singles!,
+      pos: defaultPos.pos!,
+      result: "win",
+      player1: "",
+      player2: "",
+      set1_score: "",
+      set2_score: "",
+      set3_score: "",
+      incomplete_reason: null,
+    } as PositionResult));
     setResults(initialResults);
-    setOriginalResults(JSON.parse(JSON.stringify(initialResults))); // Deep copy
-  }, [positionResults]);
+  }, []);
+
+  if (!isOpen) return null;
 
   const parseScore = (score: string | null): { ourScore: string; theirScore: string } => {
     if (!score) return { ourScore: '', theirScore: '' };
@@ -172,85 +198,18 @@ export default function EditMatchModal({ isOpen, onClose, matchId, positionResul
       const resultsToSave = results.filter(
         result => result.set1_score || result.set2_score || result.set3_score || result.incomplete_reason
       );
-      await onSave(matchId, resultsToSave);
+      await onSave(opponentName, matchDate, resultsToSave);
       onClose();
     } catch (error) {
       console.error('Failed to save match results:', error);
-      // You might want to show an error message to the user here
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleDelete = async () => {
-    try {
-      setIsDeleting(true);
-      const response = await fetch(`/api/get-team-matches?id=${matchId}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete match');
-      }
-
-      onDelete?.(); // Call the optional callback if provided
-      onClose();
-    } catch (error) {
-      console.error('Failed to delete match:', error);
-      // You might want to show an error message to the user here
-    } finally {
-      setIsDeleting(false);
-      setShowDeleteConfirm(false);
-    }
-  };
-
-  const hasUnsavedChanges = (): boolean => {
-    // Compare current results with original results
-    return JSON.stringify(results) !== JSON.stringify(originalResults);
-  };
-
-  const handleClose = () => {
-    if (hasUnsavedChanges()) {
-      setShowCancelConfirm(true);
-    } else {
-      onClose();
-    }
-  };
-
-  const handleConfirmClose = () => {
-    setShowCancelConfirm(false);
-    onClose();
-  };
-
-  if (!isOpen) return null;
-
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      {showDeleteConfirm ? (
-        <div className="bg-background p-6 rounded-lg shadow-xl max-w-md w-full">
-          <h3 className="text-lg font-semibold mb-4">Delete Match</h3>
-          <p className="text-muted-foreground mb-6">
-            Are you sure you want to delete this match? This action cannot be undone.
-          </p>
-          <div className="flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={() => setShowDeleteConfirm(false)}
-              className="px-4 py-2 border border-input rounded-md hover:bg-accent/5 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="px-4 py-2 bg-destructive text-destructive-foreground rounded-md hover:bg-destructive/90 transition-colors disabled:opacity-50"
-            >
-              {isDeleting ? 'Deleting...' : 'Delete Match'}
-            </button>
-          </div>
-        </div>
-      ) : showCancelConfirm ? (
+      {showCancelConfirm ? (
         <div className="bg-background p-6 rounded-lg shadow-xl max-w-md w-full">
           <h3 className="text-lg font-semibold mb-4">Discard Changes?</h3>
           <p className="text-muted-foreground mb-6">
@@ -276,7 +235,7 @@ export default function EditMatchModal({ isOpen, onClose, matchId, positionResul
       ) : (
         <div className="bg-background p-6 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold">Edit Match Scores</h2>
+            <h2 className="text-xl font-semibold">Enter Match Results</h2>
             <button
               onClick={handleClose}
               className="text-muted-foreground hover:text-foreground transition-colors"
@@ -286,6 +245,35 @@ export default function EditMatchModal({ isOpen, onClose, matchId, positionResul
           </div>
           <form onSubmit={handleSubmit}>
             <div className="space-y-4">
+              {/* Opponent Name */}
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Opponent Name *
+                </label>
+                <input
+                  type="text"
+                  value={opponentName}
+                  onChange={(e) => setOpponentName(e.target.value)}
+                  required
+                  className="w-full p-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
+                  placeholder="Enter opponent name"
+                />
+              </div>
+
+              {/* Match Date */}
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Match Date *
+                </label>
+                <input
+                  type="date"
+                  value={matchDate}
+                  onChange={(e) => setMatchDate(e.target.value)}
+                  required
+                  className="w-full p-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
+                />
+              </div>
+
               {results.map((result, index) => (
                 <div key={index} className="border border-input rounded-md p-4">
                   <div className="font-medium mb-4">
@@ -380,30 +368,21 @@ export default function EditMatchModal({ isOpen, onClose, matchId, positionResul
                 </div>
               ))}
             </div>
-            <div className="flex justify-between items-center gap-3 mt-6">
+            <div className="flex justify-end gap-3 mt-6">
               <button
                 type="button"
-                onClick={() => setShowDeleteConfirm(true)}
-                className="px-4 py-2 bg-destructive text-destructive-foreground rounded-md hover:bg-destructive/90 transition-colors"
+                onClick={handleClose}
+                className="px-4 py-2 border border-input rounded-md hover:bg-accent/5 transition-colors"
               >
-                Delete Match
+                Cancel
               </button>
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={handleClose}
-                  className="px-4 py-2 border border-input rounded-md hover:bg-accent/5 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSaving}
-                  className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50"
-                >
-                  {isSaving ? 'Saving...' : 'Save Changes'}
-                </button>
-              </div>
+              <button
+                type="submit"
+                disabled={isSaving}
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
+                {isSaving ? 'Saving...' : 'Save Match'}
+              </button>
             </div>
           </form>
         </div>

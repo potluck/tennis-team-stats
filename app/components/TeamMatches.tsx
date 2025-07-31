@@ -25,13 +25,17 @@ interface TeamMatch {
   position_results: PositionResult[];
 }
 
-export default function TeamMatches() {
+interface TeamMatchesProps {
+  onAddMatch: () => void;
+}
+
+export default function TeamMatches({ onAddMatch }: TeamMatchesProps) {
   const [teamMatches, setTeamMatches] = useState<TeamMatch[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [editingMatch, setEditingMatch] = useState<number | null>(null);
 
-  const fetchTeamMatches = async () => {
+  const fetchMatches = async () => {
     try {
       const response = await fetch("/api/get-team-matches");
       if (!response.ok) {
@@ -50,7 +54,7 @@ export default function TeamMatches() {
   };
 
   useEffect(() => {
-    fetchTeamMatches();
+    fetchMatches();
   }, []);
 
   const handleSaveScores = async (matchId: number, results: PositionResult[]) => {
@@ -68,7 +72,7 @@ export default function TeamMatches() {
       }
 
       // Refresh the matches data
-      await fetchTeamMatches();
+      await fetchMatches();
     } catch (error) {
       console.error("Error saving match scores:", error);
       throw error; // Re-throw to be handled by the modal
@@ -154,18 +158,20 @@ export default function TeamMatches() {
 
   return (
     <div className="bg-background text-foreground rounded-lg shadow-md p-6">
-      <h2 className="text-2xl font-semibold mb-4">Team Matches</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-2xl font-bold">Team Matches</h2>
+        <button
+          onClick={onAddMatch}
+          className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+        >
+          Add New
+        </button>
+      </div>
       {loading ? (
         <p className="text-muted-foreground">Loading team matches...</p>
       ) : error ? (
-        <div className="text-red-500">
-          <p>Error: {error}</p>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="mt-2 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-          >
-            Retry
-          </button>
+        <div className="mb-4 p-3 bg-destructive/10 border border-destructive text-destructive rounded">
+          {error}
         </div>
       ) : teamMatches.length === 0 ? (
         <p className="text-muted-foreground">No team matches found.</p>
@@ -229,6 +235,7 @@ export default function TeamMatches() {
               matchId={editingMatch}
               positionResults={teamMatches.find(m => m.id === editingMatch)?.position_results || []}
               onSave={handleSaveScores}
+              onDelete={fetchMatches}
             />
           )}
         </div>
