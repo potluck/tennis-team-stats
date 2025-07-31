@@ -56,7 +56,7 @@ interface PairStats {
 }
 
 type ViewMode = "all" | "singles" | "doubles";
-type SortField = "points" | "winPercentage";
+type SortField = "points" | "winPercentage" | "pointsPerMatch";
 type SortDirection = "asc" | "desc";
 
 function getMatchPoints(pos: number, isSingles: boolean): number {
@@ -315,6 +315,10 @@ export default function PlayerStatistics() {
       
       if (field === "points") {
         comparison = b.pointsEarned - a.pointsEarned;
+      } else if (field === "pointsPerMatch") {
+        const aPointsPerMatch = a.totalMatches > 0 ? a.pointsEarned / a.totalMatches : 0;
+        const bPointsPerMatch = b.totalMatches > 0 ? b.pointsEarned / b.totalMatches : 0;
+        comparison = bPointsPerMatch - aPointsPerMatch;
       } else {
         comparison = b.winPercentage - a.winPercentage;
       }
@@ -323,6 +327,8 @@ export default function PlayerStatistics() {
       if (comparison === 0) {
         if (field === "points") {
           comparison = b.winPercentage - a.winPercentage;
+        } else if (field === "pointsPerMatch") {
+          comparison = b.pointsEarned - a.pointsEarned;
         } else {
           comparison = b.pointsEarned - a.pointsEarned;
         }
@@ -337,17 +343,6 @@ export default function PlayerStatistics() {
     });
   };
 
-  const getDisplayScore = useCallback((player: PlayerStats) => {
-    switch (viewMode) {
-      case "singles":
-        return `${player.singlesWins}-${player.singlesLosses}-${player.singlesTies}`;
-      case "doubles":
-        return `${player.doublesWins}-${player.doublesLosses}-${player.doublesTies}`;
-      case "all":
-        return `${player.wins}-${player.losses}-${player.ties}`;
-    }
-  }, [viewMode]);
-
   const renderSortableHeader = (title: string, field: SortField) => (
     <th 
       scope="col" 
@@ -358,7 +353,11 @@ export default function PlayerStatistics() {
     >
       <div className="flex items-center justify-center gap-1">
         <span className="hidden sm:inline">{title}</span>
-        <span className="sm:hidden">{title === "Points" ? "Pts" : title === "Win %" ? "W%" : title}</span>
+        <span className="sm:hidden">
+          {title === "Points" ? "Pts" : 
+           title === "Win %" ? "W%" : 
+           title === "Points per match" ? "Pts/Match" : title}
+        </span>
         {sortField === field && <SortIcon direction={sortDirection} />}
       </div>
     </th>
@@ -428,10 +427,7 @@ export default function PlayerStatistics() {
                 </th>
                 {renderSortableHeader("Points", "points")}
                 {renderSortableHeader("Win %", "winPercentage")}
-                <th scope="col" className="px-3 sm:px-6 py-4 text-center text-xs sm:text-sm font-semibold">
-                  <span className="hidden sm:inline">W-L-T</span>
-                  <span className="sm:hidden">Record</span>
-                </th>
+                {renderSortableHeader("Points/Match", "pointsPerMatch")}
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -466,8 +462,10 @@ export default function PlayerStatistics() {
                       {pair.winPercentage.toFixed(1)}%
                     </span>
                   </td>
-                  <td className="px-3 sm:px-6 py-4 text-xs sm:text-sm text-center font-medium whitespace-nowrap">
-                    {pair.wins}-{pair.losses}-{pair.ties}
+                  <td className={`px-3 sm:px-6 py-4 text-xs sm:text-sm text-center font-medium whitespace-nowrap ${
+                    sortField === "pointsPerMatch" ? "font-bold" : ""
+                  }`}>
+                    {pair.totalMatches > 0 ? (pair.pointsEarned / pair.totalMatches).toFixed(1) : '0.0'}
                   </td>
                 </tr>
               ))}
@@ -484,10 +482,7 @@ export default function PlayerStatistics() {
                 </th>
                 {renderSortableHeader("Points", "points")}
                 {renderSortableHeader("Win %", "winPercentage")}
-                <th scope="col" className="px-3 sm:px-6 py-4 text-center text-xs sm:text-sm font-semibold">
-                  <span className="hidden sm:inline">W-L-T</span>
-                  <span className="sm:hidden">Record</span>
-                </th>
+                {renderSortableHeader("Points/Match", "pointsPerMatch")}
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -512,8 +507,10 @@ export default function PlayerStatistics() {
                       {player.winPercentage.toFixed(1)}%
                     </span>
                   </td>
-                  <td className="px-3 sm:px-6 py-4 text-xs sm:text-sm text-center font-medium whitespace-nowrap">
-                    {getDisplayScore(player)}
+                  <td className={`px-3 sm:px-6 py-4 text-xs sm:text-sm text-center font-medium whitespace-nowrap ${
+                    sortField === "pointsPerMatch" ? "font-bold" : ""
+                  }`}>
+                    {player.totalMatches > 0 ? (player.pointsEarned / player.totalMatches).toFixed(1) : '0.0'}
                   </td>
                 </tr>
               ))}
