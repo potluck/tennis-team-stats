@@ -58,15 +58,21 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen p-8">
+    <div className="min-h-screen p-4 sm:p-8">
       <main className="max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-5xl font-bold">USTA Team Stats</h1>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-4">
+            <img 
+              src="/USTA_logo.svg" 
+              alt="USTA Logo" 
+              className="h-10 w-auto"
+            />
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold">USTA Team Stats</h1>
+          </div>
         </div>
 
         <PlayerStatistics key={`stats-${refreshTrigger}`} />
-        <br />
-        <br />
+        <div className="my-6 sm:my-8" />
 
         <TeamMatches 
           onAddMatch={() => setIsModalOpen(true)} 

@@ -417,31 +417,6 @@ export default function PlayerStatistics() {
              viewMode === "singles" ? "Singles Statistics" :
              "Player Statistics"}
           </h3>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>Sort by:</span>
-            <div className="flex p-0.5 bg-secondary rounded-lg">
-              <button
-                onClick={() => handleSort("points")}
-                className={`px-3 py-1 rounded-md transition-colors ${
-                  sortField === "points"
-                    ? "bg-primary text-primary-foreground"
-                    : "hover:bg-secondary/80"
-                }`}
-              >
-                Points
-              </button>
-              <button
-                onClick={() => handleSort("winPercentage")}
-                className={`px-3 py-1 rounded-md transition-colors ${
-                  sortField === "winPercentage"
-                    ? "bg-primary text-primary-foreground"
-                    : "hover:bg-secondary/80"
-                }`}
-              >
-                Win %
-              </button>
-            </div>
-          </div>
         </div>
         <div className="flex p-0.5 bg-secondary rounded-lg">
           {(["all", "singles", "doubles"] as const).map((mode) => (
@@ -470,14 +445,11 @@ export default function PlayerStatistics() {
                 <th scope="col" className="px-6 py-4 text-left text-sm font-semibold">
                   Pair
                 </th>
-                <th scope="col" className="px-6 py-4 text-center text-sm font-semibold">
-                  Matches
-                </th>
+                {renderSortableHeader("Points", "points")}
+                {renderSortableHeader("Win %", "winPercentage")}
                 <th scope="col" className="px-6 py-4 text-center text-sm font-semibold">
                   W-L-T
                 </th>
-                {renderSortableHeader("Win %", "winPercentage")}
-                {renderSortableHeader("Points Earned", "points")}
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -489,11 +461,10 @@ export default function PlayerStatistics() {
                   <td className="px-6 py-4 text-sm font-medium whitespace-nowrap">
                     {pair.player1Name} / {pair.player2Name}
                   </td>
-                  <td className="px-6 py-4 text-sm text-center whitespace-nowrap">
-                    {pair.totalMatches}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-center font-medium whitespace-nowrap">
-                    {pair.wins}-{pair.losses}-{pair.ties}
+                  <td className={`px-6 py-4 text-sm text-center font-medium whitespace-nowrap ${
+                    sortField === "points" ? "font-bold" : ""
+                  }`}>
+                    {pair.pointsEarned}
                   </td>
                   <td className={`px-6 py-4 text-sm text-center whitespace-nowrap ${
                     sortField === "winPercentage" ? "font-bold" : ""
@@ -510,10 +481,8 @@ export default function PlayerStatistics() {
                       {pair.winPercentage.toFixed(1)}%
                     </span>
                   </td>
-                  <td className={`px-6 py-4 text-sm text-center font-medium whitespace-nowrap ${
-                    sortField === "points" ? "font-bold" : ""
-                  }`}>
-                    {pair.pointsEarned}
+                  <td className="px-6 py-4 text-sm text-center font-medium whitespace-nowrap">
+                    {pair.wins}-{pair.losses}-{pair.ties}
                   </td>
                 </tr>
               ))}
@@ -528,24 +497,11 @@ export default function PlayerStatistics() {
                 <th scope="col" className="px-6 py-4 text-left text-sm font-semibold">
                   Player
                 </th>
-                <th scope="col" className="px-6 py-4 text-center text-sm font-semibold">
-                  Matches
-                </th>
+                {renderSortableHeader("Points", "points")}
+                {renderSortableHeader("Win %", "winPercentage")}
                 <th scope="col" className="px-6 py-4 text-center text-sm font-semibold">
                   W-L-T
                 </th>
-                {renderSortableHeader("Win %", "winPercentage")}
-                {renderSortableHeader("Points Earned", "points")}
-                {viewMode === "all" && (
-                  <>
-                    <th scope="col" className="px-6 py-4 text-center text-sm font-semibold">
-                      Singles
-                    </th>
-                    <th scope="col" className="px-6 py-4 text-center text-sm font-semibold">
-                      Doubles
-                    </th>
-                  </>
-                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -554,11 +510,8 @@ export default function PlayerStatistics() {
                   <td className="px-6 py-4 text-sm font-medium whitespace-nowrap">
                     {player.name}
                   </td>
-                  <td className="px-6 py-4 text-sm text-center whitespace-nowrap">
-                    {player.totalMatches}
-                  </td>
                   <td className="px-6 py-4 text-sm text-center font-medium whitespace-nowrap">
-                    {getDisplayScore(player)}
+                    {player.pointsEarned}
                   </td>
                   <td className="px-6 py-4 text-sm text-center whitespace-nowrap">
                     <span
@@ -574,18 +527,8 @@ export default function PlayerStatistics() {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm text-center font-medium whitespace-nowrap">
-                    {player.pointsEarned}
+                    {getDisplayScore(player)}
                   </td>
-                  {viewMode === "all" && (
-                    <>
-                      <td className="px-6 py-4 text-sm text-center whitespace-nowrap">
-                        {player.singlesWins}-{player.singlesLosses}-{player.singlesTies}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-center whitespace-nowrap">
-                        {player.doublesWins}-{player.doublesLosses}-{player.doublesTies}
-                      </td>
-                    </>
-                  )}
                 </tr>
               ))}
             </tbody>
