@@ -5,6 +5,7 @@ import TeamMatches from "./components/TeamMatches";
 import EnterMatchModal from "./components/EnterMatchModal";
 import { useState } from "react";
 import type { PositionResult } from "./components/TeamMatches";
+import Image from "next/image";
 
 export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -62,9 +63,11 @@ export default function Home() {
       <main className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-4">
-            <img 
+            <Image 
               src="/USTA_logo.svg" 
               alt="USTA Logo" 
+              width={40}
+              height={40}
               className="h-10 w-auto"
             />
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold">USTA Team Stats</h1>

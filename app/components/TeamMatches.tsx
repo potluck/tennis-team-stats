@@ -183,7 +183,7 @@ export default function TeamMatches({ onAddMatch, onMatchUpdate }: TeamMatchesPr
   };
 
   return (
-    <div className="bg-background text-foreground rounded-lg shadow-md p-6">
+    <div className="bg-background text-foreground rounded-lg border border-border p-6">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold">Team Matches</h2>
         <button

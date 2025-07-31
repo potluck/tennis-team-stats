@@ -87,7 +87,6 @@ function SortIcon({ direction }: { direction: SortDirection }) {
 }
 
 export default function PlayerStatistics() {
-  const [matchResults, setMatchResults] = useState<MatchResult[]>([]);
   const [playerStats, setPlayerStats] = useState<PlayerStats[]>([]);
   const [pairStats, setPairStats] = useState<PairStats[]>([]);
   const [teamName, setTeamName] = useState<string>("");
@@ -294,7 +293,6 @@ export default function PlayerStatistics() {
         const team = teamsData.find((t: Team) => t.id === 1);
         setTeamName(team?.name || "Team");
         
-        setMatchResults(matchesData);
         calculatePlayerStats(matchesData);
         calculatePairStats(matchesData);
       } catch (err) {
@@ -339,23 +337,7 @@ export default function PlayerStatistics() {
     });
   };
 
-  const formatMatchDate = (dateString: string): string => {
-    try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) {
-        return dateString;
-      }
-      return new Date(date.getTime() + 12 * 60 * 60 * 1000).toLocaleDateString(
-        "en-US",
-        {
-          month: "short",
-          day: "numeric",
-        }
-      );
-    } catch {
-      return dateString;
-    }
-  };
+
 
   const getDisplayScore = useCallback((player: PlayerStats) => {
     switch (viewMode) {
@@ -404,8 +386,8 @@ export default function PlayerStatistics() {
   }
 
   return (
-    <div className="bg-background text-foreground rounded-lg shadow-md p-6">
-      <div className="mb-8">
+    <div className="bg-background text-foreground rounded-lg border border-border p-6 mt-4">
+      <div className="mb-6">
         <h2 className="text-4xl font-bold text-primary mb-2">{teamName}</h2>
         <div className="h-1 w-20 bg-primary rounded"></div>
       </div>
@@ -413,9 +395,9 @@ export default function PlayerStatistics() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
           <h3 className="text-2xl font-semibold">
-            {viewMode === "doubles" ? "Doubles Statistics" :
-             viewMode === "singles" ? "Singles Statistics" :
-             "Player Statistics"}
+            {viewMode === "doubles" ? "Doubles Stats" :
+             viewMode === "singles" ? "Singles Stats" :
+             "Player Stats"}
           </h3>
         </div>
         <div className="flex p-0.5 bg-secondary rounded-lg">
@@ -536,41 +518,7 @@ export default function PlayerStatistics() {
         </div>
       )}
 
-      {/* Summary Stats */}
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-secondary rounded-lg p-6 border border-border">
-          <h3 className="text-lg font-medium mb-2">
-            {viewMode === "singles" ? "Singles Matches" :
-             viewMode === "doubles" ? "Doubles Matches" :
-             "Total Matches"}
-          </h3>
-          <p className="text-3xl font-bold text-primary">
-            {viewMode === "singles" 
-              ? matchResults.filter(m => m.is_singles).length
-              : viewMode === "doubles"
-              ? matchResults.filter(m => !m.is_singles).length
-              : matchResults.length}
-          </p>
-        </div>
-        <div className="bg-secondary rounded-lg p-6 border border-border">
-          <h3 className="text-lg font-medium mb-2">
-            {viewMode === "doubles" ? "Active Pairs" : "Active Players"}
-          </h3>
-          <p className="text-3xl font-bold text-primary">
-            {viewMode === "doubles" ? pairStats.length : playerStats.length}
-          </p>
-        </div>
-        <div className="bg-secondary rounded-lg p-6 border border-border">
-          <h3 className="text-lg font-medium mb-2">
-            Recent Activity
-          </h3>
-          <p className="text-lg text-muted-foreground">
-            {matchResults.length > 0
-              ? `Last match: ${formatMatchDate(matchResults[0]?.match_date)}`
-              : "No matches yet"}
-          </p>
-        </div>
-      </div>
+
     </div>
   );
 }
