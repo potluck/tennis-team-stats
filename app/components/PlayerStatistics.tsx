@@ -139,6 +139,9 @@ export default function PlayerStatistics() {
       if (viewMode === "singles" && !result.is_singles) return;
       if (viewMode === "doubles" && result.is_singles) return;
 
+      // Skip defaulted matches for win percentage calculation
+      if (result.incomplete_reason === "default") return;
+
       // Initialize player1
       initializePlayer(result.player1, result.player1_name);
       const player1Stats = statsMap.get(result.player1)!;
@@ -229,6 +232,8 @@ export default function PlayerStatistics() {
     // Process only doubles matches
     results
       .filter(result => !result.is_singles && result.player2 !== null && result.player2_name !== null)
+      // Skip defaulted matches
+      .filter(result => result.incomplete_reason !== "default")
       .forEach(result => {
         const key = [result.player1, result.player2!].sort((a, b) => a - b).join('-');
         

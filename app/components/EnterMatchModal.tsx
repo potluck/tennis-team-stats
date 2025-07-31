@@ -82,6 +82,25 @@ export default function EnterMatchModal({ isOpen, onClose, onSave }: EnterMatchM
   const [matchDate, setMatchDate] = useState(new Date().toISOString().split('T')[0]); // Default to today
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
+  const resetForm = () => {
+    setOpponentName("");
+    setMatchDate(new Date().toISOString().split('T')[0]);
+    // Reset all results to default state
+    const initialResults = DEFAULT_POSITIONS.map(defaultPos => ({
+      is_singles: defaultPos.is_singles!,
+      pos: defaultPos.pos!,
+      result: "win",
+      player1: "",
+      player2: "",
+      set1_score: "",
+      set2_score: "",
+      set3_score: "",
+      incomplete_reason: null,
+    } as PositionResult));
+    setResults(initialResults);
+    setShowCancelConfirm(false);
+  };
+
   const hasUnsavedChanges = (): boolean => {
     // Check if opponent name has been entered
     if (opponentName.trim()) return true;
@@ -105,12 +124,13 @@ export default function EnterMatchModal({ isOpen, onClose, onSave }: EnterMatchM
     if (hasUnsavedChanges()) {
       setShowCancelConfirm(true);
     } else {
+      resetForm();
       onClose();
     }
   };
 
   const handleConfirmClose = () => {
-    setShowCancelConfirm(false);
+    resetForm();
     onClose();
   };
 
@@ -199,6 +219,7 @@ export default function EnterMatchModal({ isOpen, onClose, onSave }: EnterMatchM
         result => result.set1_score || result.set2_score || result.set3_score || result.incomplete_reason
       );
       await onSave(opponentName, matchDate, resultsToSave);
+      resetForm();
       onClose();
     } catch (error) {
       console.error('Failed to save match results:', error);

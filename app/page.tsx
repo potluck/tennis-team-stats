@@ -8,6 +8,7 @@ import type { PositionResult } from "./components/TeamMatches";
 
 export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const handleSaveMatch = async (opponentName: string, matchDate: string, results: PositionResult[]) => {
     try {
@@ -43,12 +44,17 @@ export default function Home() {
         });
       }));
 
-      // Refresh the page to show new data
-      window.location.reload();
+      // Trigger refresh of both components
+      setRefreshTrigger(prev => prev + 1);
+      setIsModalOpen(false);
     } catch (error) {
       console.error("Failed to save match:", error);
       throw error;
     }
+  };
+
+  const handleMatchUpdate = () => {
+    setRefreshTrigger(prev => prev + 1);
   };
 
   return (
@@ -58,11 +64,15 @@ export default function Home() {
           <h1 className="text-5xl font-bold">Tennis Team Stats</h1>
         </div>
 
-        <PlayerStatistics />
+        <PlayerStatistics key={`stats-${refreshTrigger}`} />
         <br />
         <br />
 
-        <TeamMatches onAddMatch={() => setIsModalOpen(true)} />
+        <TeamMatches 
+          onAddMatch={() => setIsModalOpen(true)} 
+          onMatchUpdate={handleMatchUpdate}
+          key={`matches-${refreshTrigger}`}
+        />
 
         <EnterMatchModal 
           isOpen={isModalOpen}

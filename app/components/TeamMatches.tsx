@@ -27,9 +27,10 @@ interface TeamMatch {
 
 interface TeamMatchesProps {
   onAddMatch: () => void;
+  onMatchUpdate: () => void;
 }
 
-export default function TeamMatches({ onAddMatch }: TeamMatchesProps) {
+export default function TeamMatches({ onAddMatch, onMatchUpdate }: TeamMatchesProps) {
   const [teamMatches, setTeamMatches] = useState<TeamMatch[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -57,25 +58,29 @@ export default function TeamMatches({ onAddMatch }: TeamMatchesProps) {
     fetchMatches();
   }, []);
 
-  const handleSaveScores = async (matchId: number, results: PositionResult[]) => {
+  const handleSaveScores = async (matchId: number, updatedResults: PositionResult[]) => {
     try {
       const response = await fetch("/api/update-match-scores", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ matchId, results }),
+        body: JSON.stringify({
+          matchId,
+          results: updatedResults,
+        }),
       });
 
       if (!response.ok) {
         throw new Error("Failed to update match scores");
       }
 
-      // Refresh the matches data
+      // Refresh the matches list and trigger parent update
       await fetchMatches();
+      onMatchUpdate();
     } catch (error) {
-      console.error("Error saving match scores:", error);
-      throw error; // Re-throw to be handled by the modal
+      console.error("Failed to save match scores:", error);
+      throw error;
     }
   };
 
@@ -89,11 +94,20 @@ export default function TeamMatches({ onAddMatch }: TeamMatchesProps) {
   };
 
   const getScoreDisplay = (match: TeamMatch) => {
-    const isWin = Number(match.our_points) > Number(match.their_points);
+    const ourPoints = Number(match.our_points);
+    const theirPoints = Number(match.their_points);
+    
+    let textColorClass;
+    if (ourPoints > theirPoints) {
+      textColorClass = "text-emerald-500";
+    } else if (ourPoints < theirPoints) {
+      textColorClass = "text-red-500";
+    } else {
+      textColorClass = "text-gray-500";
+    }
+
     return (
-      <span className={`text-lg font-bold ml-2 ${
-        isWin ? "text-emerald-500" : "text-red-500"
-      }`}>
+      <span className={`text-lg font-bold ml-2 ${textColorClass}`}>
         ({match.our_points} - {match.their_points})
       </span>
     );
@@ -156,6 +170,19 @@ export default function TeamMatches({ onAddMatch }: TeamMatchesProps) {
     );
   };
 
+  const getMatchResult = (match: TeamMatch) => {
+    const ourPoints = Number(match.our_points);
+    const theirPoints = Number(match.their_points);
+
+    if (ourPoints > theirPoints) {
+      return { letter: "W", bgClass: "bg-emerald-500 text-emerald-50" };
+    } else if (ourPoints < theirPoints) {
+      return { letter: "L", bgClass: "bg-red-500 text-red-50" };
+    } else {
+      return { letter: "T", bgClass: "bg-gray-500 text-gray-50" };
+    }
+  };
+
   return (
     <div className="bg-background text-foreground rounded-lg shadow-md p-6">
       <div className="flex items-center justify-between mb-4">
@@ -178,18 +205,14 @@ export default function TeamMatches({ onAddMatch }: TeamMatchesProps) {
       ) : (
         <div className="space-y-3">
           {teamMatches.map((match) => {
-            const isWin = Number(match.our_points) > Number(match.their_points);
+            const result = getMatchResult(match);
             return (
               <div
                 key={match.id}
                 className="flex rounded-md overflow-hidden w-full"
               >
-                <div className={`w-16 flex items-center justify-center text-lg font-bold ${
-                  isWin 
-                    ? "bg-emerald-500 text-emerald-50" 
-                    : "bg-red-500 text-red-50"
-                }`}>
-                  {isWin ? "W" : "L"}
+                <div className={`w-16 flex items-center justify-center text-lg font-bold ${result.bgClass}`}>
+                  {result.letter}
                 </div>
                 <div className="flex-1 border border-l-0 border-input p-4 hover:bg-accent/5 transition-colors rounded-r-md">
                   <div className="flex items-center justify-between mb-4">
@@ -235,7 +258,10 @@ export default function TeamMatches({ onAddMatch }: TeamMatchesProps) {
               matchId={editingMatch}
               positionResults={teamMatches.find(m => m.id === editingMatch)?.position_results || []}
               onSave={handleSaveScores}
-              onDelete={fetchMatches}
+              onDelete={() => {
+                fetchMatches();
+                onMatchUpdate();
+              }}
             />
           )}
         </div>
