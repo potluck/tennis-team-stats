@@ -148,7 +148,7 @@ export default function TeamMatches({ onAddMatch, onMatchUpdate }: TeamMatchesPr
           <span className={`text-xs sm:text-sm font-bold px-2 py-1 rounded ${
             pos.result === "win" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : 
             pos.result === "loss" ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" : 
-            "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400"
+            "bg-gray-100 text-gray-700 dark:bg-gray-400 dark:text-gray-900"
           }`}>
             {pos.result === "win" ? "W" : pos.result === "loss" ? "L" : "T"}
           </span>
