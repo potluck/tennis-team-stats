@@ -183,7 +183,6 @@ export default function BaseMatchModal({
   onClose,
   title,
   onSave,
-  initialResults = [],
   showDeleteButton = false,
   onDelete,
   showOpponentAndDate = false,
@@ -401,7 +400,7 @@ export default function BaseMatchModal({
     setShowCancelConfirm(false);
   };
 
-  const hasUnsavedChanges = (): boolean => {
+  const hasUnsavedChanges = useCallback((): boolean => {
     if (showOpponentAndDate) {
       if (opponentName.trim()) return true;
       const today = new Date().toISOString().split("T")[0];
@@ -421,7 +420,7 @@ export default function BaseMatchModal({
         result.incomplete_reason ||
         result.manualResult
     );
-  };
+  }, [showOpponentAndDate, opponentName, matchDate, results]);
 
   // Score change handlers with validation and auto-completion
   const handleScoreChange = (
@@ -462,7 +461,7 @@ export default function BaseMatchModal({
           const theirScore = isOurScore ? partnerScore : newScore;
 
           if (!validFunction(ourScore, theirScore)) {
-            (result as any)[partnerField] = "";
+            (result as unknown as Record<string, number | "">)[partnerField] = "";
           }
         } else {
           // Auto-complete if there's only one valid option
@@ -500,7 +499,7 @@ export default function BaseMatchModal({
 
           const validOptions = getValidScores(newScore);
           if (validOptions.length === 1) {
-            (result as any)[partnerField] = validOptions[0];
+            (result as unknown as Record<string, number | "">)[partnerField] = validOptions[0];
           }
         }
       }
@@ -559,19 +558,19 @@ export default function BaseMatchModal({
     setResults(newResults);
   };
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     if (hasUnsavedChanges()) {
       setShowCancelConfirm(true);
     } else {
       resetForm();
       onClose();
     }
-  };
+  }, [hasUnsavedChanges, onClose]);
 
-  const handleConfirmClose = () => {
+  const handleConfirmClose = useCallback(() => {
     resetForm();
     onClose();
-  };
+  }, [onClose]);
 
   useEffect(() => {
     // Fetch available players
@@ -625,13 +624,13 @@ export default function BaseMatchModal({
       document.addEventListener('keydown', handleEscape);
       return () => document.removeEventListener('keydown', handleEscape);
     }
-  }, [isOpen]);
+  }, [isOpen, handleClose]);
 
-  const handleBackdropClick = (e: React.MouseEvent) => {
+  const handleBackdropClick = useCallback((e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
       handleClose();
     }
-  };
+  }, [handleClose]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

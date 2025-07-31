@@ -126,13 +126,6 @@ export default function TeamMatches({ onAddMatch, onMatchUpdate }: TeamMatchesPr
     return scores;
   };
 
-  const getPositionName = (isSingles: boolean, pos: number): string => {
-    if (isSingles) {
-      return `Singles ${pos}`;
-    }
-    return `Doubles ${pos}`;
-  };
-
   const getPositionResults = (match: TeamMatch) => {
     if (!match.position_results) return null;
 
@@ -180,7 +173,6 @@ export default function TeamMatches({ onAddMatch, onMatchUpdate }: TeamMatchesPr
   const getMatchResult = (match: TeamMatch) => {
     const ourPoints = Number(match.our_points);
     const theirPoints = Number(match.their_points);
-
     if (ourPoints > theirPoints) {
       return { letter: "W", bgClass: "bg-emerald-500 text-emerald-50" };
     } else if (ourPoints < theirPoints) {

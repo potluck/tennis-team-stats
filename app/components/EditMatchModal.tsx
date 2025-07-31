@@ -19,7 +19,7 @@ export default function EditMatchModal({
   onDelete 
 }: EditMatchModalProps) {
   
-  const handleSave = async (results: PositionResult[], opponentName?: string, matchDate?: string) => {
+  const handleSave = async (results: PositionResult[]) => {
     await onSave(matchId, results);
   };
 
