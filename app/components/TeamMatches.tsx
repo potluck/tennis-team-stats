@@ -242,7 +242,7 @@ export default function TeamMatches({ onAddMatch, onMatchUpdate }: TeamMatchesPr
                         </svg>
                       </button>
                     </div>
-                    <span className="text-sm text-muted-foreground">
+                    <span className="text-base text-muted-foreground">
                       {formatMatchDate(match.match_date)}
                     </span>
                   </div>
