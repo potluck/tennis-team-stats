@@ -87,7 +87,6 @@ export default function TeamMatches({ onAddMatch, onMatchUpdate }: TeamMatchesPr
   const formatMatchDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString("en-US", {
-      weekday: "short",
       month: "short",
       day: "numeric",
     });
@@ -107,7 +106,7 @@ export default function TeamMatches({ onAddMatch, onMatchUpdate }: TeamMatchesPr
     }
 
     return (
-      <span className={`text-lg font-bold ml-2 ${textColorClass}`}>
+      <span className={`text-sm sm:text-lg font-bold ml-0 ${textColorClass}`}>
         ({match.our_points} - {match.their_points})
       </span>
     );
@@ -135,37 +134,48 @@ export default function TeamMatches({ onAddMatch, onMatchUpdate }: TeamMatchesPr
     const renderResult = (pos: PositionResult) => (
       <div 
         key={`${pos.is_singles}-${pos.pos}`} 
-        className="flex items-center gap-4 p-3 border border-input rounded-md bg-background/50"
+        className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-3 border border-input rounded-md bg-background/50"
       >
-        <div className="flex-1">
-          <span className="text-sm text-muted-foreground">
+        <div className="flex items-center gap-2 flex-1">
+          <span className="text-xs sm:text-sm text-muted-foreground font-medium">
             {pos.is_singles ? "S" : "D"}{pos.pos}:
           </span>
-          <span className={`text-sm font-medium ml-2 ${
-            pos.result === "win" ? "text-emerald-500" : 
-            pos.result === "loss" ? "text-red-500" : 
-            "text-foreground"
+          <span className={`text-xs sm:text-sm font-bold px-2 py-1 rounded ${
+            pos.result === "win" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : 
+            pos.result === "loss" ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" : 
+            "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400"
           }`}>
             {pos.result === "win" ? "W" : pos.result === "loss" ? "L" : "T"}
           </span>
-          <span className="text-sm ml-2 text-muted-foreground">
+          <span className="text-xs sm:text-sm text-muted-foreground">
             ({getSetScores(pos)})
           </span>
         </div>
-        <span className="text-sm font-medium">
-          {pos.is_singles ? pos.player1 : `${pos.player1} / ${pos.player2}`}
+        <span className="text-xs sm:text-sm font-medium text-right sm:text-left">
+          {pos.is_singles ? pos.player1 : (
+            <div className="flex flex-col">
+              <span>{pos.player1}</span>
+              <span className="text-muted-foreground">/ {pos.player2}</span>
+            </div>
+          )}
         </span>
       </div>
     );
 
     return (
-      <div className="grid grid-cols-2 gap-4 mt-4">
-        <div className="space-y-3">
-          {singlesResults.map(renderResult)}
-        </div>
-        <div className="space-y-3">
-          {doublesResults.map(renderResult)}
-        </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+        {singlesResults.length > 0 && (
+          <div className="space-y-2 sm:space-y-3">
+            <h4 className="text-sm font-semibold text-muted-foreground mb-2">Singles</h4>
+            {singlesResults.map(renderResult)}
+          </div>
+        )}
+        {doublesResults.length > 0 && (
+          <div className="space-y-2 sm:space-y-3">
+            <h4 className="text-sm font-semibold text-muted-foreground mb-2">Doubles</h4>
+            {doublesResults.map(renderResult)}
+          </div>
+        )}
       </div>
     );
   };
@@ -183,67 +193,75 @@ export default function TeamMatches({ onAddMatch, onMatchUpdate }: TeamMatchesPr
   };
 
   return (
-    <div className="bg-background text-foreground rounded-lg border border-border p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-bold">Team Matches</h2>
+    <div className="bg-background text-foreground rounded-lg border border-border p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-4">
+        <h2 className="text-xl sm:text-2xl font-bold">Team Matches</h2>
         <button
           onClick={onAddMatch}
-          className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+          className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm sm:text-base w-full sm:w-auto font-bold"
         >
           Add New
         </button>
       </div>
       {loading ? (
-        <p className="text-muted-foreground">Loading team matches...</p>
+        <div className="flex items-center justify-center py-8">
+          <p className="text-muted-foreground">Loading team matches...</p>
+        </div>
       ) : error ? (
         <div className="mb-4 p-3 bg-destructive/10 border border-destructive text-destructive rounded">
           {error}
         </div>
       ) : teamMatches.length === 0 ? (
-        <p className="text-muted-foreground">No team matches found.</p>
+        <div className="flex items-center justify-center py-8">
+          <p className="text-muted-foreground">No team matches found.</p>
+        </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {teamMatches.map((match) => {
             const result = getMatchResult(match);
             return (
               <div
                 key={match.id}
-                className="flex rounded-md overflow-hidden w-full"
+                className="flex flex-col sm:flex-row rounded-lg overflow-hidden w-full border border-border hover:border-primary/50 transition-all duration-200 hover:shadow-md"
               >
-                <div className={`w-16 flex items-center justify-center text-lg font-bold ${result.bgClass}`}>
+                <div className={`w-full sm:w-16 h-12 sm:h-auto flex items-center justify-center text-lg sm:text-xl font-bold ${result.bgClass}`}>
                   {result.letter}
                 </div>
-                <div className="flex-1 border border-l-0 border-input p-4 hover:bg-accent/5 transition-colors rounded-r-md">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center">
-                      <h3 className="text-lg font-medium">
-                        vs {match.opponent_name}
-                      </h3>
-                      {getScoreDisplay(match)}
-                      <button
-                        onClick={() => setEditingMatch(match.id)}
-                        className="ml-3 text-muted-foreground hover:text-foreground transition-colors"
-                        title="Edit match scores"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
+                <div className="flex-1 p-4 sm:p-6 hover:bg-accent/5 transition-colors">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-base sm:text-lg font-semibold">
+                          vs {match.opponent_name}
+                        </h3>
+                        {getScoreDisplay(match)}
+                        <button
+                          onClick={() => setEditingMatch(match.id)}
+                          className="p-1 text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-md transition-colors"
+                          title="Edit match scores"
                         >
-                          <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
-                          <path d="m15 5 4 4"/>
-                        </svg>
-                      </button>
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+                            <path d="m15 5 4 4"/>
+                          </svg>
+                        </button>
+                      </div>
                     </div>
-                    <span className="text-base text-muted-foreground">
-                      {formatMatchDate(match.match_date)}
-                    </span>
+                    <div className="flex items-center justify-between sm:justify-end gap-2">
+                      <span className="text-sm text-muted-foreground">
+                        {formatMatchDate(match.match_date)}
+                      </span>
+                    </div>
                   </div>
                   {getPositionResults(match)}
                 </div>

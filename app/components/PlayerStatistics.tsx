@@ -337,8 +337,6 @@ export default function PlayerStatistics() {
     });
   };
 
-
-
   const getDisplayScore = useCallback((player: PlayerStats) => {
     switch (viewMode) {
       case "singles":
@@ -353,13 +351,14 @@ export default function PlayerStatistics() {
   const renderSortableHeader = (title: string, field: SortField) => (
     <th 
       scope="col" 
-      className={`px-6 py-4 text-center text-sm cursor-pointer hover:text-primary transition-colors ${
+      className={`px-3 sm:px-6 py-4 text-center text-xs sm:text-sm cursor-pointer hover:text-primary transition-colors ${
         sortField === field ? "text-primary font-bold" : "font-semibold"
       }`}
       onClick={() => handleSort(field)}
     >
       <div className="flex items-center justify-center gap-1">
-        {title}
+        <span className="hidden sm:inline">{title}</span>
+        <span className="sm:hidden">{title === "Points" ? "Pts" : title === "Win %" ? "W%" : title}</span>
         {sortField === field && <SortIcon direction={sortDirection} />}
       </div>
     </th>
@@ -367,8 +366,8 @@ export default function PlayerStatistics() {
 
   if (loading) {
     return (
-      <div className="bg-background text-foreground rounded-lg shadow-md p-6">
-        <h2 className="text-2xl font-semibold mb-4">Player Statistics</h2>
+      <div className="bg-background text-foreground rounded-lg shadow-md p-4 sm:p-6">
+        <h2 className="text-xl sm:text-2xl font-semibold mb-4">Player Statistics</h2>
         <p className="text-muted-foreground">Loading...</p>
       </div>
     );
@@ -376,8 +375,8 @@ export default function PlayerStatistics() {
 
   if (error) {
     return (
-      <div className="bg-background text-foreground rounded-lg shadow-md p-6">
-        <h2 className="text-2xl font-semibold mb-4">Player Statistics</h2>
+      <div className="bg-background text-foreground rounded-lg shadow-md p-4 sm:p-6">
+        <h2 className="text-xl sm:text-2xl font-semibold mb-4">Player Statistics</h2>
         <div className="p-3 bg-destructive/10 border border-destructive text-destructive rounded">
           {error}
         </div>
@@ -386,26 +385,26 @@ export default function PlayerStatistics() {
   }
 
   return (
-    <div className="bg-background text-foreground rounded-lg border border-border p-6 mt-4">
-      <div className="mb-6">
-        <h2 className="text-4xl font-bold text-primary mb-2">{teamName}</h2>
-        <div className="h-1 w-20 bg-primary rounded"></div>
+    <div className="bg-background text-foreground rounded-lg border border-border p-4 sm:p-6 mt-4">
+      <div className="mb-4 sm:mb-6">
+        <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-primary mb-2">{teamName}</h2>
+        <div className="h-1 w-16 sm:w-20 bg-primary rounded"></div>
       </div>
 
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 gap-4">
         <div className="flex items-center gap-4">
-          <h3 className="text-2xl font-semibold">
+          <h3 className="text-xl sm:text-2xl font-semibold">
             {viewMode === "doubles" ? "Doubles Stats" :
              viewMode === "singles" ? "Singles Stats" :
              "Player Stats"}
           </h3>
         </div>
-        <div className="flex p-0.5 bg-secondary rounded-lg">
+        <div className="flex p-0.5 bg-secondary rounded-lg w-fit">
           {(["all", "singles", "doubles"] as const).map((mode) => (
             <button
               key={mode}
               onClick={() => setViewMode(mode)}
-              className={`px-4 py-2 rounded-md transition-colors capitalize ${
+              className={`px-3 sm:px-4 py-2 rounded-md transition-colors capitalize text-sm sm:text-base ${
                 viewMode === mode
                   ? "bg-primary text-primary-foreground"
                   : "hover:bg-secondary/80"
@@ -424,13 +423,14 @@ export default function PlayerStatistics() {
           <table className="min-w-full divide-y divide-border">
             <thead>
               <tr className="bg-secondary">
-                <th scope="col" className="px-6 py-4 text-left text-sm font-semibold">
+                <th scope="col" className="px-3 sm:px-6 py-4 text-left text-xs sm:text-sm font-semibold">
                   Pair
                 </th>
                 {renderSortableHeader("Points", "points")}
                 {renderSortableHeader("Win %", "winPercentage")}
-                <th scope="col" className="px-6 py-4 text-center text-sm font-semibold">
-                  W-L-T
+                <th scope="col" className="px-3 sm:px-6 py-4 text-center text-xs sm:text-sm font-semibold">
+                  <span className="hidden sm:inline">W-L-T</span>
+                  <span className="sm:hidden">Record</span>
                 </th>
               </tr>
             </thead>
@@ -440,15 +440,18 @@ export default function PlayerStatistics() {
                   key={`${pair.player1Id}-${pair.player2Id}`}
                   className="hover:bg-secondary/50 transition-colors"
                 >
-                  <td className="px-6 py-4 text-sm font-medium whitespace-nowrap">
-                    {pair.player1Name} / {pair.player2Name}
+                  <td className="px-3 sm:px-6 py-4 text-xs sm:text-sm font-medium">
+                    <div className="flex flex-col">
+                      <span className="whitespace-nowrap">{pair.player1Name}</span>
+                      <span className="whitespace-nowrap text-muted-foreground">/ {pair.player2Name}</span>
+                    </div>
                   </td>
-                  <td className={`px-6 py-4 text-sm text-center font-medium whitespace-nowrap ${
+                  <td className={`px-3 sm:px-6 py-4 text-xs sm:text-sm text-center font-medium whitespace-nowrap ${
                     sortField === "points" ? "font-bold" : ""
                   }`}>
                     {pair.pointsEarned}
                   </td>
-                  <td className={`px-6 py-4 text-sm text-center whitespace-nowrap ${
+                  <td className={`px-3 sm:px-6 py-4 text-xs sm:text-sm text-center whitespace-nowrap ${
                     sortField === "winPercentage" ? "font-bold" : ""
                   }`}>
                     <span
@@ -463,7 +466,7 @@ export default function PlayerStatistics() {
                       {pair.winPercentage.toFixed(1)}%
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-center font-medium whitespace-nowrap">
+                  <td className="px-3 sm:px-6 py-4 text-xs sm:text-sm text-center font-medium whitespace-nowrap">
                     {pair.wins}-{pair.losses}-{pair.ties}
                   </td>
                 </tr>
@@ -476,26 +479,27 @@ export default function PlayerStatistics() {
           <table className="min-w-full divide-y divide-border">
             <thead>
               <tr className="bg-secondary">
-                <th scope="col" className="px-6 py-4 text-left text-sm font-semibold">
+                <th scope="col" className="px-3 sm:px-6 py-4 text-left text-xs sm:text-sm font-semibold">
                   Player
                 </th>
                 {renderSortableHeader("Points", "points")}
                 {renderSortableHeader("Win %", "winPercentage")}
-                <th scope="col" className="px-6 py-4 text-center text-sm font-semibold">
-                  W-L-T
+                <th scope="col" className="px-3 sm:px-6 py-4 text-center text-xs sm:text-sm font-semibold">
+                  <span className="hidden sm:inline">W-L-T</span>
+                  <span className="sm:hidden">Record</span>
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {playerStats.map((player) => (
                 <tr key={player.id} className="hover:bg-secondary/50 transition-colors">
-                  <td className="px-6 py-4 text-sm font-medium whitespace-nowrap">
+                  <td className="px-3 sm:px-6 py-4 text-xs sm:text-sm font-medium whitespace-nowrap">
                     {player.name}
                   </td>
-                  <td className="px-6 py-4 text-sm text-center font-medium whitespace-nowrap">
+                  <td className="px-3 sm:px-6 py-4 text-xs sm:text-sm text-center font-medium whitespace-nowrap">
                     {player.pointsEarned}
                   </td>
-                  <td className="px-6 py-4 text-sm text-center whitespace-nowrap">
+                  <td className="px-3 sm:px-6 py-4 text-xs sm:text-sm text-center whitespace-nowrap">
                     <span
                       className={`font-medium ${
                         player.winPercentage >= 70
@@ -508,7 +512,7 @@ export default function PlayerStatistics() {
                       {player.winPercentage.toFixed(1)}%
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-center font-medium whitespace-nowrap">
+                  <td className="px-3 sm:px-6 py-4 text-xs sm:text-sm text-center font-medium whitespace-nowrap">
                     {getDisplayScore(player)}
                   </td>
                 </tr>
@@ -517,8 +521,6 @@ export default function PlayerStatistics() {
           </table>
         </div>
       )}
-
-
     </div>
   );
 }
