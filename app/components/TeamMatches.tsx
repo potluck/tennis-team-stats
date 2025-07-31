@@ -126,6 +126,13 @@ export default function TeamMatches({ onAddMatch, onMatchUpdate }: TeamMatchesPr
     return scores;
   };
 
+  const getPositionName = (isSingles: boolean, pos: number): string => {
+    if (isSingles) {
+      return `Singles ${pos}`;
+    }
+    return `Doubles ${pos}`;
+  };
+
   const getPositionResults = (match: TeamMatch) => {
     if (!match.position_results) return null;
 

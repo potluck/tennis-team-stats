@@ -156,6 +156,13 @@ const MATCH_RESULTS = [
   { value: "tie", label: "Tie" },
 ] as const;
 
+const getPositionName = (isSingles: boolean, pos: number): string => {
+  if (isSingles) {
+    return `Singles ${pos}`;
+  }
+  return `Doubles ${pos}`;
+};
+
 // Enhanced PositionResult interface for internal state
 interface EnhancedPositionResult
   extends Omit<PositionResult, "set1_score" | "set2_score" | "set3_score"> {
@@ -592,6 +599,25 @@ export default function EnterMatchModal({
     setResults(initialResults);
   }, []);
 
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscape);
+      return () => document.removeEventListener('keydown', handleEscape);
+    }
+  }, [isOpen]);
+
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      handleClose();
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
@@ -642,13 +668,12 @@ export default function EnterMatchModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={handleBackdropClick}>
       {showCancelConfirm ? (
         <div className="bg-background p-6 rounded-lg shadow-xl max-w-md w-full">
           <h3 className="text-lg font-semibold mb-4">Discard Changes?</h3>
           <p className="text-muted-foreground mb-6">
-            You have unsaved changes. Are you sure you want to close this
-            window? Your changes will be lost.
+            You have unsaved changes. Are you sure you want to close this window? Your changes will be lost.
           </p>
           <div className="flex justify-end gap-3">
             <button
@@ -711,16 +736,15 @@ export default function EnterMatchModal({
 
               {results.map((result, index) => (
                 <div key={index} className="border border-input rounded-md p-4">
-                  <div className="font-medium mb-4">
-                    {result.is_singles ? "S" : "D"}
-                    {result.pos}
+                  <div className="font-bold mb-4">
+                    {getPositionName(result.is_singles, result.pos)}
                   </div>
 
                   {/* Player Selection */}
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div>
                       <label className="block text-sm text-muted-foreground mb-1">
-                        Player 1
+                        {result.is_singles ? "" : "Player 1"}
                       </label>
                       <select
                         value={result.player1}

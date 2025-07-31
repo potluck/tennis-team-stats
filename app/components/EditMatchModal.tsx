@@ -123,6 +123,25 @@ export default function EditMatchModal({ isOpen, onClose, matchId, positionResul
     setOriginalResults(JSON.parse(JSON.stringify(initialResults))); // Deep copy
   }, [positionResults]);
 
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscape);
+      return () => document.removeEventListener('keydown', handleEscape);
+    }
+  }, [isOpen]);
+
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      handleClose();
+    }
+  };
+
   const parseScore = (score: string | null): { ourScore: string; theirScore: string } => {
     if (!score) return { ourScore: '', theirScore: '' };
     const [our, their] = score.split('-');
@@ -225,7 +244,7 @@ export default function EditMatchModal({ isOpen, onClose, matchId, positionResul
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={handleBackdropClick}>
       {showDeleteConfirm ? (
         <div className="bg-background p-6 rounded-lg shadow-xl max-w-md w-full">
           <h3 className="text-lg font-semibold mb-4">Delete Match</h3>
@@ -293,7 +312,9 @@ export default function EditMatchModal({ isOpen, onClose, matchId, positionResul
                   </div>
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div>
-                      <label className="block text-sm text-muted-foreground mb-1">Player 1</label>
+                      <label className="block text-sm text-muted-foreground mb-1">
+                        {result.is_singles ? "" : "Player 1"}
+                      </label>
                       <select
                         value={result.player1}
                         onChange={(e) => handlePlayerChange(index, 'player1', e.target.value)}
