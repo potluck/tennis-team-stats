@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Tennis Team Stats",
-  description: "Tennis Team Stats",
+  title: "USTA Team Stats",
+  description: "USTA Team Stats",
 }; 

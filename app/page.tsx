@@ -61,7 +61,7 @@ export default function Home() {
     <div className="min-h-screen p-8">
       <main className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-5xl font-bold">Tennis Team Stats</h1>
+          <h1 className="text-5xl font-bold">USTA Team Stats</h1>
         </div>
 
         <PlayerStatistics key={`stats-${refreshTrigger}`} />

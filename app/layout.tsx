@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Tennis Team Stats",
-  description: "Tennis Team Stats",
+  title: "USTA Team Stats",
+  description: "USTA Team Stats",
 };
 
 export default function RootLayout({
