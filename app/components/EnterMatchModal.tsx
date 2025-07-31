@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { PositionResult } from "./TeamMatches";
 
 interface Player {
@@ -11,45 +11,127 @@ interface Player {
 interface EnterMatchModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (opponentName: string, matchDate: string, results: PositionResult[]) => Promise<void>;
+  onSave: (
+    opponentName: string,
+    matchDate: string,
+    results: PositionResult[]
+  ) => Promise<void>;
 }
 
 interface ScoreInputProps {
   label: string;
-  ourScore: string;
-  theirScore: string;
-  onOurScoreChange: (value: string) => void;
-  onTheirScoreChange: (value: string) => void;
-  placeholder?: string;
+  ourScore: number | "";
+  theirScore: number | "";
+  onOurScoreChange: (value: number | "") => void;
+  onTheirScoreChange: (value: number | "") => void;
+  isThirdSet?: boolean;
+  incompleteReason: string | null;
+  isValid: boolean;
 }
 
-function ScoreInput({ label, ourScore, theirScore, onOurScoreChange, onTheirScoreChange, placeholder = "0" }: ScoreInputProps) {
+function ScoreInput({
+  label,
+  ourScore,
+  theirScore,
+  onOurScoreChange,
+  onTheirScoreChange,
+  isThirdSet = false,
+  incompleteReason,
+  isValid,
+}: ScoreInputProps) {
+  // Helper function to get score options based on whether match is incomplete
+  const getScoreOptions = (partnerScore: number | ""): number[] => {
+    // If incomplete reason is selected, allow any score from 0-7 (or 0-1 for third set)
+    if (incompleteReason) {
+      return isThirdSet ? [0, 1] : [0, 1, 2, 3, 4, 5, 6, 7];
+    }
+
+    // Otherwise, use normal tennis scoring rules
+    if (isThirdSet) {
+      return getValidScoresForThirdSet(partnerScore);
+    } else {
+      return getValidScoresForRegularSet(partnerScore);
+    }
+  };
+
+  const getValidScoresForRegularSet = (partnerScore: number | ""): number[] => {
+    if (partnerScore === "") return [0, 1, 2, 3, 4, 5, 6, 7];
+
+    const validCombinations = [
+      [6, 0],
+      [6, 1],
+      [6, 2],
+      [6, 3],
+      [6, 4],
+      [0, 6],
+      [1, 6],
+      [2, 6],
+      [3, 6],
+      [4, 6],
+      [7, 5],
+      [5, 7],
+      [7, 6],
+      [6, 7],
+    ];
+
+    return validCombinations
+      .filter(([, b]) => b === partnerScore)
+      .map(([a]) => a);
+  };
+
+  const getValidScoresForThirdSet = (partnerScore: number | ""): number[] => {
+    if (partnerScore === "") return [0, 1];
+    if (partnerScore === 0) return [1];
+    if (partnerScore === 1) return [0, 1];
+    return [];
+  };
+
   return (
     <div>
-      <label className="block text-sm text-muted-foreground mb-1">{label}</label>
+      <label className="block text-sm font-medium mb-1">{label}</label>
       <div className="flex gap-2 items-center">
-        <div className="flex-1">
-          <label className="block text-xs text-muted-foreground mb-1">Our Score</label>
-          <input
-            type="text"
-            value={ourScore}
-            onChange={(e) => onOurScoreChange(e.target.value)}
-            className="w-full px-3 py-1 border border-input rounded bg-background"
-            placeholder={placeholder}
-          />
-        </div>
-        <span className="text-muted mt-5">-</span>
-        <div className="flex-1">
-          <label className="block text-xs text-muted-foreground mb-1">Their Score</label>
-          <input
-            type="text"
-            value={theirScore}
-            onChange={(e) => onTheirScoreChange(e.target.value)}
-            className="w-full px-3 py-1 border border-input rounded bg-background"
-            placeholder={placeholder}
-          />
-        </div>
+        <select
+          value={ourScore}
+          onChange={(e) =>
+            onOurScoreChange(
+              e.target.value === "" ? "" : Number(e.target.value)
+            )
+          }
+          className="flex-1 p-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
+        >
+          <option value="">Us</option>
+          {getScoreOptions(theirScore).map((num) => (
+            <option key={num} value={num}>
+              {num}
+            </option>
+          ))}
+        </select>
+        <span className="text-muted">-</span>
+        <select
+          value={theirScore}
+          onChange={(e) =>
+            onTheirScoreChange(
+              e.target.value === "" ? "" : Number(e.target.value)
+            )
+          }
+          className="flex-1 p-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
+        >
+          <option value="">Them</option>
+          {getScoreOptions(ourScore).map((num) => (
+            <option key={num} value={num}>
+              {num}
+            </option>
+          ))}
+        </select>
       </div>
+      {ourScore !== "" &&
+        theirScore !== "" &&
+        !incompleteReason &&
+        !isValid && (
+          <p className="text-destructive text-sm mt-1">
+            Invalid score combination
+          </p>
+        )}
     </div>
   );
 }
@@ -74,50 +156,388 @@ const MATCH_RESULTS = [
   { value: "tie", label: "Tie" },
 ] as const;
 
-export default function EnterMatchModal({ isOpen, onClose, onSave }: EnterMatchModalProps) {
-  const [results, setResults] = useState<PositionResult[]>([]);
+// Enhanced PositionResult interface for internal state
+interface EnhancedPositionResult
+  extends Omit<PositionResult, "set1_score" | "set2_score" | "set3_score"> {
+  set1OurScore: number | "";
+  set1TheirScore: number | "";
+  set2OurScore: number | "";
+  set2TheirScore: number | "";
+  set3OurScore: number | "";
+  set3TheirScore: number | "";
+  manualResult: string;
+}
+
+export default function EnterMatchModal({
+  isOpen,
+  onClose,
+  onSave,
+}: EnterMatchModalProps) {
+  const [results, setResults] = useState<EnhancedPositionResult[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [players, setPlayers] = useState<Player[]>([]);
   const [opponentName, setOpponentName] = useState("");
-  const [matchDate, setMatchDate] = useState(new Date().toISOString().split('T')[0]); // Default to today
+  const [matchDate, setMatchDate] = useState(
+    new Date().toISOString().split("T")[0]
+  );
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+
+  // Score validation functions
+  const isValidRegularSetScore = (
+    ourScore: number | "",
+    theirScore: number | ""
+  ): boolean => {
+    if (ourScore === "" || theirScore === "") return true;
+
+    const validCombinations = [
+      [6, 0],
+      [6, 1],
+      [6, 2],
+      [6, 3],
+      [6, 4],
+      [0, 6],
+      [1, 6],
+      [2, 6],
+      [3, 6],
+      [4, 6],
+      [7, 5],
+      [5, 7],
+      [7, 6],
+      [6, 7],
+    ];
+
+    return validCombinations.some(
+      ([a, b]) => a === ourScore && b === theirScore
+    );
+  };
+
+  const isValidThirdSetScore = (
+    ourScore: number | "",
+    theirScore: number | ""
+  ): boolean => {
+    if (ourScore === "" || theirScore === "") return true;
+    return (
+      (ourScore === 1 && theirScore === 0) ||
+      (ourScore === 0 && theirScore === 1) ||
+      (ourScore === 1 && theirScore === 1)
+    );
+  };
+
+  // Function to determine set winner: 0 = no winner, 1 = we won, 2 = they won, 3 = tie
+  const getSetWinner = useCallback(
+    (ourScore: number | "", theirScore: number | ""): number => {
+      if (ourScore === "" || theirScore === "") return 0;
+
+      // Check third set scores first (super tiebreak)
+      if (ourScore === 1 && theirScore === 0) return 1;
+      if (ourScore === 0 && theirScore === 1) return 2;
+      if (ourScore === 1 && theirScore === 1) return 3;
+
+      // Check all combinations where we win (regular sets)
+      const weWinCombinations = [
+        [6, 0],
+        [6, 1],
+        [6, 2],
+        [6, 3],
+        [6, 4],
+        [7, 5],
+        [7, 6],
+      ];
+
+      if (
+        weWinCombinations.some(([a, b]) => a === ourScore && b === theirScore)
+      ) {
+        return 1;
+      }
+
+      // Check all combinations where they win (regular sets)
+      const theyWinCombinations = [
+        [0, 6],
+        [1, 6],
+        [2, 6],
+        [3, 6],
+        [4, 6],
+        [5, 7],
+        [6, 7],
+      ];
+
+      if (
+        theyWinCombinations.some(([a, b]) => a === ourScore && b === theirScore)
+      ) {
+        return 2;
+      }
+
+      return 0;
+    },
+    []
+  );
+
+  // Check if third set should be hidden (same team won first two sets)
+  const shouldHideThirdSet = useCallback(
+    (result: EnhancedPositionResult): boolean => {
+      const set1Winner = getSetWinner(
+        result.set1OurScore,
+        result.set1TheirScore
+      );
+      const set2Winner = getSetWinner(
+        result.set2OurScore,
+        result.set2TheirScore
+      );
+
+      return set1Winner !== 0 && set2Winner !== 0 && set1Winner === set2Winner;
+    },
+    [getSetWinner]
+  );
+
+  // Determine overall match result based on sets won
+  const getMatchResult = (
+    result: EnhancedPositionResult
+  ): "win" | "loss" | "tie" => {
+    // If incomplete reason is selected, use manual result
+    if (result.incomplete_reason && result.manualResult) {
+      return result.manualResult as "win" | "loss" | "tie";
+    }
+
+    const set1Winner = getSetWinner(result.set1OurScore, result.set1TheirScore);
+    const set2Winner = getSetWinner(result.set2OurScore, result.set2TheirScore);
+    const set3Winner = getSetWinner(result.set3OurScore, result.set3TheirScore);
+
+    // Count sets won by each team
+    let ourSetsWon = 0;
+    let theirSetsWon = 0;
+
+    if (set1Winner === 1) ourSetsWon++;
+    else if (set1Winner === 2) theirSetsWon++;
+
+    if (set2Winner === 1) ourSetsWon++;
+    else if (set2Winner === 2) theirSetsWon++;
+
+    if (set3Winner === 1) ourSetsWon++;
+    else if (set3Winner === 2) theirSetsWon++;
+
+    // Special case: If third set is a tie (1-1)
+    if (set3Winner === 3) {
+      // If sets are split 1-1 after first two, and third set is 1-1, it's a match tie
+      if (set1Winner !== 0 && set2Winner !== 0 && set1Winner !== set2Winner) {
+        return "tie";
+      }
+    }
+
+    // Determine result based on sets won
+    if (ourSetsWon > theirSetsWon) return "win";
+    if (theirSetsWon > ourSetsWon) return "loss";
+
+    return "win"; // Default fallback
+  };
+
+  // Check if result should be automatically determined
+  const isResultAutoDetermined = (result: EnhancedPositionResult): boolean => {
+    // If incomplete reason is selected, result is manually determined
+    if (result.incomplete_reason) {
+      return result.manualResult !== "";
+    }
+
+    const set1Winner = getSetWinner(result.set1OurScore, result.set1TheirScore);
+    const set2Winner = getSetWinner(result.set2OurScore, result.set2TheirScore);
+
+    // Auto-determined if same team won first 2 sets
+    if (set1Winner !== 0 && set2Winner !== 0 && set1Winner === set2Winner) {
+      return true;
+    }
+
+    // Auto-determined if all 3 sets are complete (including ties)
+    if (set1Winner !== 0 && set2Winner !== 0) {
+      const set3Winner = getSetWinner(
+        result.set3OurScore,
+        result.set3TheirScore
+      );
+      if (set3Winner !== 0) {
+        return true;
+      }
+    }
+
+    return false;
+  };
 
   const resetForm = () => {
     setOpponentName("");
-    setMatchDate(new Date().toISOString().split('T')[0]);
-    // Reset all results to default state
-    const initialResults = DEFAULT_POSITIONS.map(defaultPos => ({
-      is_singles: defaultPos.is_singles!,
-      pos: defaultPos.pos!,
-      result: "win",
-      player1: "",
-      player2: "",
-      set1_score: "",
-      set2_score: "",
-      set3_score: "",
-      incomplete_reason: null,
-    } as PositionResult));
+    setMatchDate(new Date().toISOString().split("T")[0]);
+    const initialResults = DEFAULT_POSITIONS.map(
+      (defaultPos) =>
+        ({
+          is_singles: defaultPos.is_singles!,
+          pos: defaultPos.pos!,
+          result: "win",
+          player1: "",
+          player2: "",
+          set1OurScore: "" as number | "",
+          set1TheirScore: "" as number | "",
+          set2OurScore: "" as number | "",
+          set2TheirScore: "" as number | "",
+          set3OurScore: "" as number | "",
+          set3TheirScore: "" as number | "",
+          incomplete_reason: null,
+          manualResult: "",
+        } as EnhancedPositionResult)
+    );
     setResults(initialResults);
     setShowCancelConfirm(false);
   };
 
   const hasUnsavedChanges = (): boolean => {
-    // Check if opponent name has been entered
     if (opponentName.trim()) return true;
-
-    // Check if date has been changed from today
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().split("T")[0];
     if (matchDate !== today) return true;
 
-    // Check if any result has been modified
-    return results.some(result => (
-      result.player1 || 
-      result.player2 || 
-      result.set1_score || 
-      result.set2_score || 
-      result.set3_score ||
-      result.incomplete_reason
-    ));
+    return results.some(
+      (result) =>
+        result.player1 ||
+        result.player2 ||
+        result.set1OurScore !== "" ||
+        result.set1TheirScore !== "" ||
+        result.set2OurScore !== "" ||
+        result.set2TheirScore !== "" ||
+        result.set3OurScore !== "" ||
+        result.set3TheirScore !== "" ||
+        result.incomplete_reason ||
+        result.manualResult
+    );
+  };
+
+  // Score change handlers with validation and auto-completion
+  const handleScoreChange = (
+    index: number,
+    field: keyof Pick<
+      EnhancedPositionResult,
+      | "set1OurScore"
+      | "set1TheirScore"
+      | "set2OurScore"
+      | "set2TheirScore"
+      | "set3OurScore"
+      | "set3TheirScore"
+    >,
+    newScore: number | ""
+  ) => {
+    const newResults = [...results];
+    const result = { ...newResults[index] };
+    result[field] = newScore;
+
+    // Auto-complete logic for regular sets
+    if (!result.incomplete_reason) {
+      const isThirdSet = field.includes("set3");
+      const isOurScore = field.includes("Our");
+
+      if (newScore !== "") {
+        const partnerField = isOurScore
+          ? (field.replace("Our", "Their") as keyof EnhancedPositionResult)
+          : (field.replace("Their", "Our") as keyof EnhancedPositionResult);
+
+        const partnerScore = result[partnerField] as number | "";
+
+        if (partnerScore !== "") {
+          // Validate combination
+          const validFunction = isThirdSet
+            ? isValidThirdSetScore
+            : isValidRegularSetScore;
+          const ourScore = isOurScore ? newScore : partnerScore;
+          const theirScore = isOurScore ? partnerScore : newScore;
+
+          if (!validFunction(ourScore, theirScore)) {
+            (result as any)[partnerField] = "";
+          }
+        } else {
+          // Auto-complete if there's only one valid option
+          const getValidScores = isThirdSet
+            ? (score: number | "") =>
+                score === ""
+                  ? [0, 1]
+                  : score === 0
+                  ? [1]
+                  : score === 1
+                  ? [0, 1]
+                  : []
+            : (score: number | "") => {
+                if (score === "") return [0, 1, 2, 3, 4, 5, 6, 7];
+                const validCombinations = [
+                  [6, 0],
+                  [6, 1],
+                  [6, 2],
+                  [6, 3],
+                  [6, 4],
+                  [0, 6],
+                  [1, 6],
+                  [2, 6],
+                  [3, 6],
+                  [4, 6],
+                  [7, 5],
+                  [5, 7],
+                  [7, 6],
+                  [6, 7],
+                ];
+                return validCombinations
+                  .filter(([, b]) => b === score)
+                  .map(([a]) => a);
+              };
+
+          const validOptions = getValidScores(newScore);
+          if (validOptions.length === 1) {
+            (result as any)[partnerField] = validOptions[0];
+          }
+        }
+      }
+    }
+
+    // Clear third set when it should be hidden
+    if (shouldHideThirdSet(result)) {
+      result.set3OurScore = "";
+      result.set3TheirScore = "";
+    }
+
+    // Auto-determine result if possible
+    result.result = getMatchResult(result);
+
+    newResults[index] = result;
+    setResults(newResults);
+  };
+
+  const handlePlayerChange = (
+    index: number,
+    field: "player1" | "player2",
+    value: string
+  ) => {
+    const newResults = [...results];
+    newResults[index] = { ...newResults[index], [field]: value };
+    setResults(newResults);
+  };
+
+  const handleIncompleteReasonChange = (
+    index: number,
+    value: "timeout" | "injury" | "default" | null
+  ) => {
+    const newResults = [...results];
+    const result = { ...newResults[index] };
+    result.incomplete_reason = value;
+    result.manualResult = ""; // Reset manual result when changing incomplete reason
+
+    // Auto-determine result if no incomplete reason
+    if (!value) {
+      result.result = getMatchResult(result);
+    }
+
+    newResults[index] = result;
+    setResults(newResults);
+  };
+
+  const handleManualResultChange = (
+    index: number,
+    value: "win" | "loss" | "tie"
+  ) => {
+    const newResults = [...results];
+    const result = { ...newResults[index] };
+    result.manualResult = value;
+    result.result = value;
+    newResults[index] = result;
+    setResults(newResults);
   };
 
   const handleClose = () => {
@@ -135,7 +555,6 @@ export default function EnterMatchModal({ isOpen, onClose, onSave }: EnterMatchM
   };
 
   useEffect(() => {
-    // Fetch available players
     async function fetchPlayers() {
       try {
         const response = await fetch("/api/get-players");
@@ -152,81 +571,75 @@ export default function EnterMatchModal({ isOpen, onClose, onSave }: EnterMatchM
   }, []);
 
   useEffect(() => {
-    // Initialize results with default positions
-    const initialResults = DEFAULT_POSITIONS.map(defaultPos => ({
-      is_singles: defaultPos.is_singles!,
-      pos: defaultPos.pos!,
-      result: "win",
-      player1: "",
-      player2: "",
-      set1_score: "",
-      set2_score: "",
-      set3_score: "",
-      incomplete_reason: null,
-    } as PositionResult));
+    const initialResults = DEFAULT_POSITIONS.map(
+      (defaultPos) =>
+        ({
+          is_singles: defaultPos.is_singles!,
+          pos: defaultPos.pos!,
+          result: "win",
+          player1: "",
+          player2: "",
+          set1OurScore: "" as number | "",
+          set1TheirScore: "" as number | "",
+          set2OurScore: "" as number | "",
+          set2TheirScore: "" as number | "",
+          set3OurScore: "" as number | "",
+          set3TheirScore: "" as number | "",
+          incomplete_reason: null,
+          manualResult: "",
+        } as EnhancedPositionResult)
+    );
     setResults(initialResults);
   }, []);
-
-  if (!isOpen) return null;
-
-  const parseScore = (score: string | null): { ourScore: string; theirScore: string } => {
-    if (!score) return { ourScore: '', theirScore: '' };
-    const [our, their] = score.split('-');
-    return { 
-      ourScore: our || '', 
-      theirScore: their || '' 
-    };
-  };
-
-  const formatScore = (ourScore: string, theirScore: string): string => {
-    if (!ourScore && !theirScore) return '';
-    return `${ourScore || ''}-${theirScore || ''}`;
-  };
-
-  const handleScoreChange = (index: number, field: 'set1_score' | 'set2_score' | 'set3_score', ourScore: string, theirScore: string) => {
-    const newResults = [...results];
-    newResults[index] = { 
-      ...newResults[index], 
-      [field]: formatScore(ourScore, theirScore)
-    };
-    setResults(newResults);
-  };
-
-  const handlePlayerChange = (index: number, field: 'player1' | 'player2', value: string) => {
-    const newResults = [...results];
-    newResults[index] = { ...newResults[index], [field]: value };
-    setResults(newResults);
-  };
-
-  const handleResultChange = (index: number, value: PositionResult['result']) => {
-    const newResults = [...results];
-    newResults[index] = { ...newResults[index], result: value };
-    setResults(newResults);
-  };
-
-  const handleIncompleteReasonChange = (index: number, value: PositionResult['incomplete_reason']) => {
-    const newResults = [...results];
-    newResults[index] = { ...newResults[index], incomplete_reason: value };
-    setResults(newResults);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
     try {
-      // Only save positions that have at least one set score or an incomplete reason
-      const resultsToSave = results.filter(
-        result => result.set1_score || result.set2_score || result.set3_score || result.incomplete_reason
-      );
+      // Convert internal format back to PositionResult format
+      const resultsToSave: PositionResult[] = results
+        .filter(
+          (result) =>
+            result.set1OurScore !== "" ||
+            result.set1TheirScore !== "" ||
+            result.set2OurScore !== "" ||
+            result.set2TheirScore !== "" ||
+            result.set3OurScore !== "" ||
+            result.set3TheirScore !== "" ||
+            result.incomplete_reason
+        )
+        .map((result) => ({
+          is_singles: result.is_singles,
+          pos: result.pos,
+          result: result.result,
+          player1: result.player1,
+          player2: result.is_singles ? null : result.player2 || null,
+          set1_score:
+            result.set1OurScore !== "" && result.set1TheirScore !== ""
+              ? `${result.set1OurScore}-${result.set1TheirScore}`
+              : "",
+          set2_score:
+            result.set2OurScore !== "" && result.set2TheirScore !== ""
+              ? `${result.set2OurScore}-${result.set2TheirScore}`
+              : "",
+          set3_score:
+            result.set3OurScore !== "" && result.set3TheirScore !== ""
+              ? `${result.set3OurScore}-${result.set3TheirScore}`
+              : null,
+          incomplete_reason: result.incomplete_reason,
+        }));
+
       await onSave(opponentName, matchDate, resultsToSave);
       resetForm();
       onClose();
     } catch (error) {
-      console.error('Failed to save match results:', error);
+      console.error("Failed to save match results:", error);
     } finally {
       setIsSaving(false);
     }
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -234,7 +647,8 @@ export default function EnterMatchModal({ isOpen, onClose, onSave }: EnterMatchM
         <div className="bg-background p-6 rounded-lg shadow-xl max-w-md w-full">
           <h3 className="text-lg font-semibold mb-4">Discard Changes?</h3>
           <p className="text-muted-foreground mb-6">
-            You have unsaved changes. Are you sure you want to close this window? Your changes will be lost.
+            You have unsaved changes. Are you sure you want to close this
+            window? Your changes will be lost.
           </p>
           <div className="flex justify-end gap-3">
             <button
@@ -298,18 +712,25 @@ export default function EnterMatchModal({ isOpen, onClose, onSave }: EnterMatchM
               {results.map((result, index) => (
                 <div key={index} className="border border-input rounded-md p-4">
                   <div className="font-medium mb-4">
-                    {result.is_singles ? 'S' : 'D'}{result.pos}
+                    {result.is_singles ? "S" : "D"}
+                    {result.pos}
                   </div>
+
+                  {/* Player Selection */}
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div>
-                      <label className="block text-sm text-muted-foreground mb-1">Player 1</label>
+                      <label className="block text-sm text-muted-foreground mb-1">
+                        Player 1
+                      </label>
                       <select
                         value={result.player1}
-                        onChange={(e) => handlePlayerChange(index, 'player1', e.target.value)}
+                        onChange={(e) =>
+                          handlePlayerChange(index, "player1", e.target.value)
+                        }
                         className="w-full px-3 py-1 border border-input rounded bg-background text-sm"
                       >
                         <option value="">Select player</option>
-                        {players.map(player => (
+                        {players.map((player) => (
                           <option key={player.id} value={player.name}>
                             {player.name}
                           </option>
@@ -318,14 +739,18 @@ export default function EnterMatchModal({ isOpen, onClose, onSave }: EnterMatchM
                     </div>
                     {!result.is_singles && (
                       <div>
-                        <label className="block text-sm text-muted-foreground mb-1">Player 2</label>
+                        <label className="block text-sm text-muted-foreground mb-1">
+                          Player 2
+                        </label>
                         <select
-                          value={result.player2 || ''}
-                          onChange={(e) => handlePlayerChange(index, 'player2', e.target.value)}
+                          value={result.player2 || ""}
+                          onChange={(e) =>
+                            handlePlayerChange(index, "player2", e.target.value)
+                          }
                           className="w-full px-3 py-1 border border-input rounded bg-background text-sm"
                         >
                           <option value="">Select player</option>
-                          {players.map(player => (
+                          {players.map((player) => (
                             <option key={player.id} value={player.name}>
                               {player.name}
                             </option>
@@ -334,58 +759,160 @@ export default function EnterMatchModal({ isOpen, onClose, onSave }: EnterMatchM
                       </div>
                     )}
                   </div>
+
+                  {/* Set Scores */}
+                  <div className="space-y-4 mb-4">
+                    <ScoreInput
+                      label="Set 1 Score *"
+                      ourScore={result.set1OurScore}
+                      theirScore={result.set1TheirScore}
+                      onOurScoreChange={(value) =>
+                        handleScoreChange(index, "set1OurScore", value)
+                      }
+                      onTheirScoreChange={(value) =>
+                        handleScoreChange(index, "set1TheirScore", value)
+                      }
+                      incompleteReason={result.incomplete_reason}
+                      isValid={
+                        result.incomplete_reason
+                          ? true
+                          : isValidRegularSetScore(
+                              result.set1OurScore,
+                              result.set1TheirScore
+                            )
+                      }
+                    />
+                    <ScoreInput
+                      label="Set 2 Score *"
+                      ourScore={result.set2OurScore}
+                      theirScore={result.set2TheirScore}
+                      onOurScoreChange={(value) =>
+                        handleScoreChange(index, "set2OurScore", value)
+                      }
+                      onTheirScoreChange={(value) =>
+                        handleScoreChange(index, "set2TheirScore", value)
+                      }
+                      incompleteReason={result.incomplete_reason}
+                      isValid={
+                        result.incomplete_reason
+                          ? true
+                          : isValidRegularSetScore(
+                              result.set2OurScore,
+                              result.set2TheirScore
+                            )
+                      }
+                    />
+                    {!shouldHideThirdSet(result) && (
+                      <ScoreInput
+                        label="Set 3 Score"
+                        ourScore={result.set3OurScore}
+                        theirScore={result.set3TheirScore}
+                        onOurScoreChange={(value) =>
+                          handleScoreChange(index, "set3OurScore", value)
+                        }
+                        onTheirScoreChange={(value) =>
+                          handleScoreChange(index, "set3TheirScore", value)
+                        }
+                        isThirdSet={true}
+                        incompleteReason={result.incomplete_reason}
+                        isValid={
+                          result.incomplete_reason
+                            ? true
+                            : isValidThirdSetScore(
+                                result.set3OurScore,
+                                result.set3TheirScore
+                              )
+                        }
+                      />
+                    )}
+                  </div>
+
+                  {/* Incomplete Reason */}
                   <div className="mb-4">
-                    <label className="block text-sm text-muted-foreground mb-1">Result</label>
+                    <label className="block text-sm font-medium mb-1">
+                      Incomplete Reason (Optional)
+                    </label>
                     <select
-                      value={result.result}
-                      onChange={(e) => handleResultChange(index, e.target.value as PositionResult['result'])}
-                      className="w-full px-3 py-1 border border-input rounded bg-background text-sm"
+                      value={result.incomplete_reason || ""}
+                      onChange={(e) =>
+                        handleIncompleteReasonChange(
+                          index,
+                          (e.target.value || null) as
+                            | "timeout"
+                            | "injury"
+                            | "default"
+                            | null
+                        )
+                      }
+                      className="w-full p-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
                     >
-                      {MATCH_RESULTS.map(matchResult => (
-                        <option key={matchResult.value} value={matchResult.value}>
-                          {matchResult.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-4">
-                    <ScoreInput
-                      label="Set 1"
-                      {...parseScore(result.set1_score)}
-                      onOurScoreChange={(value) => handleScoreChange(index, 'set1_score', value, parseScore(result.set1_score).theirScore)}
-                      onTheirScoreChange={(value) => handleScoreChange(index, 'set1_score', parseScore(result.set1_score).ourScore, value)}
-                      placeholder="6"
-                    />
-                    <ScoreInput
-                      label="Set 2"
-                      {...parseScore(result.set2_score)}
-                      onOurScoreChange={(value) => handleScoreChange(index, 'set2_score', value, parseScore(result.set2_score).theirScore)}
-                      onTheirScoreChange={(value) => handleScoreChange(index, 'set2_score', parseScore(result.set2_score).ourScore, value)}
-                      placeholder="6"
-                    />
-                    <ScoreInput
-                      label="Set 3"
-                      {...parseScore(result.set3_score)}
-                      onOurScoreChange={(value) => handleScoreChange(index, 'set3_score', value, parseScore(result.set3_score).theirScore)}
-                      onTheirScoreChange={(value) => handleScoreChange(index, 'set3_score', parseScore(result.set3_score).ourScore, value)}
-                      placeholder="1"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-muted-foreground mb-1">Incomplete Reason</label>
-                    <select
-                      value={result.incomplete_reason || ''}
-                      onChange={(e) => handleIncompleteReasonChange(index, (e.target.value || null) as PositionResult['incomplete_reason'])}
-                      className="w-full px-3 py-1 border border-input rounded bg-background text-sm"
-                    >
-                      <option value="">None</option>
-                      {INCOMPLETE_REASONS.map(reason => (
+                      <option value="">None - Complete Match</option>
+                      {INCOMPLETE_REASONS.map((reason) => (
                         <option key={reason.value} value={reason.value}>
                           {reason.label}
                         </option>
                       ))}
                     </select>
                   </div>
+
+                  {/* Manual Result Selection (only if incomplete) */}
+                  {result.incomplete_reason && (
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium mb-1">
+                        Match Result *
+                      </label>
+                      <select
+                        value={result.manualResult}
+                        onChange={(e) =>
+                          handleManualResultChange(
+                            index,
+                            e.target.value as "win" | "loss" | "tie"
+                          )
+                        }
+                        required
+                        className="w-full p-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-ring focus:border-ring"
+                      >
+                        <option value="">Select result</option>
+                        {MATCH_RESULTS.map((matchResult) => (
+                          <option
+                            key={matchResult.value}
+                            value={matchResult.value}
+                          >
+                            {matchResult.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Result Display */}
+                  {isResultAutoDetermined(result) && (
+                    <div>
+                      <label className="block text-sm font-medium mb-1">
+                        Match Result
+                      </label>
+                      <div
+                        className={`w-full p-3 border rounded-md ${
+                          getMatchResult(result) === "win"
+                            ? "bg-primary/10 border-primary text-primary"
+                            : getMatchResult(result) === "loss"
+                            ? "bg-destructive/10 border-destructive text-destructive"
+                            : "bg-accent/10 border-accent text-accent-foreground"
+                        }`}
+                      >
+                        <div className="flex items-center">
+                          <span className="font-medium capitalize">
+                            {getMatchResult(result)}
+                          </span>
+                          <span className="text-sm ml-2 opacity-80">
+                            {result.incomplete_reason
+                              ? `(Manual - ${result.incomplete_reason})`
+                              : "(Auto-determined from set scores)"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -402,7 +929,7 @@ export default function EnterMatchModal({ isOpen, onClose, onSave }: EnterMatchM
                 disabled={isSaving}
                 className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50"
               >
-                {isSaving ? 'Saving...' : 'Save Match'}
+                {isSaving ? "Saving..." : "Save Match"}
               </button>
             </div>
           </form>
@@ -410,4 +937,4 @@ export default function EnterMatchModal({ isOpen, onClose, onSave }: EnterMatchM
       )}
     </div>
   );
-} 
+}
