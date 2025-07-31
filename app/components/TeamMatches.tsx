@@ -105,9 +105,14 @@ export default function TeamMatches({ onAddMatch, onMatchUpdate }: TeamMatchesPr
       textColorClass = "text-gray-500";
     }
 
+    // Format scores to remove trailing zeros
+    const formatScore = (score: number) => {
+      return score % 1 === 0 ? score.toString() : score.toFixed(1).replace(/\.0$/, '');
+    };
+
     return (
       <span className={`text-sm sm:text-lg font-bold ml-0 ${textColorClass}`}>
-        ({match.our_points} - {match.their_points})
+        ({formatScore(ourPoints)} - {formatScore(theirPoints)})
       </span>
     );
   };

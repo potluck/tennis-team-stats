@@ -63,12 +63,12 @@ export async function GET() {
           mr.set3score,
           CASE 
             WHEN mr.result = 'win' THEN get_match_points(mr.pos, mr.is_singles)
-            WHEN mr.result = 'tie' THEN get_match_points(mr.pos, mr.is_singles) / 2
+            WHEN mr.result = 'tie' THEN get_match_points(mr.pos, mr.is_singles)::decimal / 2
             ELSE 0
           END as our_points,
           CASE 
             WHEN mr.result = 'loss' THEN get_match_points(mr.pos, mr.is_singles)
-            WHEN mr.result = 'tie' THEN get_match_points(mr.pos, mr.is_singles) / 2
+            WHEN mr.result = 'tie' THEN get_match_points(mr.pos, mr.is_singles)::decimal / 2
             ELSE 0
           END as their_points
         FROM match_results mr
