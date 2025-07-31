@@ -44,7 +44,13 @@ export default function TeamMatches({ onAddMatch, onMatchUpdate }: TeamMatchesPr
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
       const data = await response.json();
-      setTeamMatches(data);
+      // Sort matches in reverse chronological order (newest first)
+      const sortedMatches = data.sort((a: TeamMatch, b: TeamMatch) => {
+        const dateA = new Date(a.match_date);
+        const dateB = new Date(b.match_date);
+        return dateB.getTime() - dateA.getTime();
+      });
+      setTeamMatches(sortedMatches);
       setError(null);
     } catch (err) {
       console.error("Error fetching team matches:", err);

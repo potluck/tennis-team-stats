@@ -183,6 +183,7 @@ export default function BaseMatchModal({
   onClose,
   title,
   onSave,
+  initialResults,
   showDeleteButton = false,
   onDelete,
   showOpponentAndDate = false,
@@ -195,6 +196,7 @@ export default function BaseMatchModal({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [players, setPlayers] = useState<Player[]>([]);
+  const [isLoadingPlayers, setIsLoadingPlayers] = useState(false);
   const [opponentName, setOpponentName] = useState(initialOpponentName || "");
   const [matchDate, setMatchDate] = useState(initialMatchDate || new Date().toISOString().split("T")[0]);
 
@@ -407,6 +409,47 @@ export default function BaseMatchModal({
       if (matchDate !== today) return true;
     }
 
+    // If we're editing (have initialResults), we need to compare against the original data
+    if (initialResults && initialResults.length > 0) {
+      return results.some((result, index) => {
+        const originalResult = initialResults[index];
+        if (!originalResult) return true; // New position added
+
+        // Parse original scores for comparison
+        const parseSetScore = (scoreString: string | null): { our: number | ""; their: number | "" } => {
+          if (!scoreString || scoreString.trim() === "") {
+            return { our: "", their: "" };
+          }
+          const parts = scoreString.split("-");
+          if (parts.length === 2) {
+            const our = parseInt(parts[0]);
+            const their = parseInt(parts[1]);
+            return { our: isNaN(our) ? "" : our, their: isNaN(their) ? "" : their };
+          }
+          return { our: "", their: "" };
+        };
+
+        const originalSet1Scores = parseSetScore(originalResult.set1_score);
+        const originalSet2Scores = parseSetScore(originalResult.set2_score);
+        const originalSet3Scores = parseSetScore(originalResult.set3_score);
+
+        // Compare all fields
+        return (
+          result.player1 !== originalResult.player1 ||
+          result.player2 !== (originalResult.player2 || "") ||
+          result.set1OurScore !== originalSet1Scores.our ||
+          result.set1TheirScore !== originalSet1Scores.their ||
+          result.set2OurScore !== originalSet2Scores.our ||
+          result.set2TheirScore !== originalSet2Scores.their ||
+          result.set3OurScore !== originalSet3Scores.our ||
+          result.set3TheirScore !== originalSet3Scores.their ||
+          result.incomplete_reason !== originalResult.incomplete_reason ||
+          (result.incomplete_reason ? result.manualResult !== originalResult.result : false)
+        );
+      });
+    }
+
+    // For new matches, check if any data has been entered
     return results.some(
       (result) =>
         result.player1 ||
@@ -420,7 +463,7 @@ export default function BaseMatchModal({
         result.incomplete_reason ||
         result.manualResult
     );
-  }, [showOpponentAndDate, opponentName, matchDate, results]);
+  }, [showOpponentAndDate, opponentName, matchDate, results, initialResults]);
 
   // Score change handlers with validation and auto-completion
   const handleScoreChange = (
@@ -576,42 +619,99 @@ export default function BaseMatchModal({
     // Fetch available players
     async function fetchPlayers() {
       try {
-        const response = await fetch("/api/get-players");
+        setIsLoadingPlayers(true);
+        const response = await fetch("/api/get-players", {
+          // Add timeout to prevent hanging requests
+          signal: AbortSignal.timeout(10000) // 10 second timeout
+        });
+        
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+          console.warn("Failed to fetch players:", errorData.error || `HTTP error! status: ${response.status}`);
+          // Don't throw, just set empty array
+          setPlayers([]);
+          return;
         }
+        
         const data = await response.json();
         setPlayers(data);
       } catch (error) {
         console.error("Error fetching players:", error);
         // Don't throw the error, just log it and continue with empty players array
+        setPlayers([]);
+      } finally {
+        setIsLoadingPlayers(false);
       }
     }
-    fetchPlayers();
-  }, []);
+    
+    // Only fetch players if the modal is open
+    if (isOpen) {
+      fetchPlayers();
+    }
+  }, [isOpen]);
 
   useEffect(() => {
-    const initialResults = DEFAULT_POSITIONS.map(
-      (defaultPos) =>
-        ({
-          is_singles: defaultPos.is_singles!,
-          pos: defaultPos.pos!,
-          result: "win",
-          player1: "",
-          player2: "",
-          set1OurScore: "" as number | "",
-          set1TheirScore: "" as number | "",
-          set2OurScore: "" as number | "",
-          set2TheirScore: "" as number | "",
-          set3OurScore: "" as number | "",
-          set3TheirScore: "" as number | "",
-          incomplete_reason: null,
-          manualResult: "",
-        } as EnhancedPositionResult)
-    );
-    setResults(initialResults);
-  }, []);
+    // If we have initialResults (editing mode), use those
+    if (initialResults && initialResults.length > 0) {
+      const enhancedResults = initialResults.map((result: PositionResult) => {
+        // Parse set scores from string format (e.g., "6-4") to separate our/their scores
+        const parseSetScore = (scoreString: string | null): { our: number | ""; their: number | "" } => {
+          if (!scoreString || scoreString.trim() === "") {
+            return { our: "", their: "" };
+          }
+          const parts = scoreString.split("-");
+          if (parts.length === 2) {
+            const our = parseInt(parts[0]);
+            const their = parseInt(parts[1]);
+            return { our: isNaN(our) ? "" : our, their: isNaN(their) ? "" : their };
+          }
+          return { our: "", their: "" };
+        };
+
+        const set1Scores = parseSetScore(result.set1_score);
+        const set2Scores = parseSetScore(result.set2_score);
+        const set3Scores = parseSetScore(result.set3_score);
+
+        return {
+          is_singles: result.is_singles,
+          pos: result.pos,
+          result: result.result,
+          player1: result.player1,
+          player2: result.player2 || "",
+          set1OurScore: set1Scores.our,
+          set1TheirScore: set1Scores.their,
+          set2OurScore: set2Scores.our,
+          set2TheirScore: set2Scores.their,
+          set3OurScore: set3Scores.our,
+          set3TheirScore: set3Scores.their,
+          incomplete_reason: result.incomplete_reason,
+          manualResult: result.incomplete_reason ? result.result : "",
+        } as EnhancedPositionResult;
+      });
+      setResults(enhancedResults);
+    } else {
+      // Default initialization for new matches
+      const initialResults = DEFAULT_POSITIONS.map(
+        (defaultPos) =>
+          ({
+            is_singles: defaultPos.is_singles!,
+            pos: defaultPos.pos!,
+            result: "win",
+            player1: "",
+            player2: "",
+            set1OurScore: "" as number | "",
+            set1TheirScore: "" as number | "",
+            set2OurScore: "" as number | "",
+            set2TheirScore: "" as number | "",
+            set3OurScore: "" as number | "",
+            set3TheirScore: "" as number | "",
+            incomplete_reason: null,
+            manualResult: "",
+          } as EnhancedPositionResult)
+      );
+      setResults(initialResults);
+    }
+  }, [initialResults]);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -781,14 +881,41 @@ export default function BaseMatchModal({
                   </div>
                 </div>
               )}
-              {results.map((result, index) => (
-                <div key={index} className="border border-input rounded-md p-4">
-                  <div className="font-bold mb-4">
-                    {getPositionName(result.is_singles, result.pos)}
-                  </div>
+              {results.map((result, index) => {
+                // Determine background color based on result
+                const getResultBackgroundColor = (result: EnhancedPositionResult) => {
+                  if (result.incomplete_reason) {
+                    // For incomplete matches, use the manual result
+                    switch (result.manualResult) {
+                      case "win": return "bg-emerald-50 border-emerald-200";
+                      case "loss": return "bg-red-50 border-red-200";
+                      case "tie": return "bg-gray-50 border-gray-200";
+                      default: return "bg-background border-input";
+                    }
+                  } else {
+                    // For complete matches, use the auto-determined result
+                    switch (result.result) {
+                      case "win": return "bg-emerald-50 border-emerald-200";
+                      case "loss": return "bg-red-50 border-red-200";
+                      case "tie": return "bg-gray-50 border-gray-200";
+                      default: return "bg-background border-input";
+                    }
+                  }
+                };
+
+                return (
+                  <div key={index} className={`border rounded-md p-4 ${getResultBackgroundColor(result)}`}>
+                    <div className="font-bold mb-4">
+                      {getPositionName(result.is_singles, result.pos)}
+                    </div>
 
                   {/* Player Selection */}
                   <div className="grid grid-cols-2 gap-4 mb-4">
+                    {players.length === 0 && !isLoadingPlayers && (
+                      <div className="col-span-2 mb-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
+                        ⚠️ Unable to load players list. You can still edit scores and other data.
+                      </div>
+                    )}
                     <div>
                       <label className="block text-sm text-muted-foreground mb-1">
                         {result.is_singles ? "" : "Player 1"}
@@ -799,8 +926,16 @@ export default function BaseMatchModal({
                           handlePlayerChange(index, "player1", e.target.value)
                         }
                         className="w-full px-3 py-1 border border-input rounded bg-background text-sm"
+                        disabled={isLoadingPlayers}
                       >
-                        <option value="">Select player</option>
+                        <option value="">
+                          {isLoadingPlayers 
+                            ? "Loading players..." 
+                            : players.length === 0 
+                              ? "No players available" 
+                              : "Select player"
+                          }
+                        </option>
                         {players.map((player) => (
                           <option key={player.id} value={player.name}>
                             {player.name}
@@ -819,8 +954,16 @@ export default function BaseMatchModal({
                             handlePlayerChange(index, "player2", e.target.value)
                           }
                           className="w-full px-3 py-1 border border-input rounded bg-background text-sm"
+                          disabled={isLoadingPlayers}
                         >
-                          <option value="">Select player</option>
+                          <option value="">
+                            {isLoadingPlayers 
+                              ? "Loading players..." 
+                              : players.length === 0 
+                                ? "No players available" 
+                                : "Select player"
+                            }
+                          </option>
                           {players.map((player) => (
                             <option key={player.id} value={player.name}>
                               {player.name}
@@ -834,7 +977,7 @@ export default function BaseMatchModal({
                   {/* Set Scores */}
                   <div className="space-y-4 mb-4">
                     <ScoreInput
-                      label="Set 1 Score *"
+                      label="Set 1"
                       ourScore={result.set1OurScore}
                       theirScore={result.set1TheirScore}
                       onOurScoreChange={(value) =>
@@ -854,7 +997,7 @@ export default function BaseMatchModal({
                       }
                     />
                     <ScoreInput
-                      label="Set 2 Score *"
+                      label="Set 2"
                       ourScore={result.set2OurScore}
                       theirScore={result.set2TheirScore}
                       onOurScoreChange={(value) =>
@@ -875,7 +1018,7 @@ export default function BaseMatchModal({
                     />
                     {!shouldHideThirdSet(result) && (
                       <ScoreInput
-                        label="Set 3 Score"
+                        label="Set 3"
                         ourScore={result.set3OurScore}
                         theirScore={result.set3TheirScore}
                         onOurScoreChange={(value) =>
@@ -957,7 +1100,11 @@ export default function BaseMatchModal({
                   )}
 
                   {/* Result Display */}
-                  {isResultAutoDetermined(result) && (
+                  {(isResultAutoDetermined(result) || 
+                    result.incomplete_reason ||
+                    (result.set1OurScore !== "" || result.set1TheirScore !== "" || 
+                     result.set2OurScore !== "" || result.set2TheirScore !== "" || 
+                     result.set3OurScore !== "" || result.set3TheirScore !== "")) && (
                     <div>
                       <label className="block text-sm font-medium mb-1">
                         Match Result
@@ -965,9 +1112,11 @@ export default function BaseMatchModal({
                       <div
                         className={`w-full p-3 border rounded-md ${
                           getMatchResult(result) === "win"
-                            ? "bg-primary/10 border-primary text-primary"
+                            ? "bg-emerald-100 border-emerald-300 text-emerald-800"
                             : getMatchResult(result) === "loss"
-                            ? "bg-destructive/10 border-destructive text-destructive"
+                            ? "bg-red-100 border-red-300 text-red-800"
+                            : getMatchResult(result) === "tie"
+                            ? "bg-gray-100 border-gray-300 text-gray-800"
                             : "bg-accent/10 border-accent text-accent-foreground"
                         }`}
                       >
@@ -978,14 +1127,17 @@ export default function BaseMatchModal({
                           <span className="text-sm ml-2 opacity-80">
                             {result.incomplete_reason
                               ? `(Manual - ${result.incomplete_reason})`
-                              : "(Auto-determined from set scores)"}
+                              : isResultAutoDetermined(result)
+                              ? "(Auto-determined from set scores)"
+                              : "(Calculated from current scores)"}
                           </span>
                         </div>
                       </div>
                     </div>
                   )}
                 </div>
-              ))}
+              );
+            })}
             </div>
             <div className="flex justify-between items-center gap-3 mt-6">
               {showDeleteButton && (
