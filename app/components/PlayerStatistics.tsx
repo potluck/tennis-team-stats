@@ -1,65 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-
-interface Team {
-  id: number;
-  name: string;
-}
-
-interface Player {
-  id: number;
-  name: string;
-  team_id: number;
-}
-
-interface MatchResult {
-  id: number;
-  team_match_id: number;
-  is_singles: boolean;
-  pos: number;
-  player1: number;
-  player2: number | null;
-  result: "win" | "loss" | "tie";
-  set1score: string;
-  set2score: string;
-  set3score: string | null;
-  incomplete_reason: string | null;
-  player1_name: string;
-  player2_name: string | null;
-  match_date: string;
-  opponent_name: string;
-}
-
-interface PlayerStats {
-  id: number;
-  name: string;
-  wins: number;
-  losses: number;
-  ties: number;
-  totalMatches: number;
-  winPercentage: number;
-  singlesWins: number;
-  singlesLosses: number;
-  singlesTies: number;
-  doublesWins: number;
-  doublesLosses: number;
-  doublesTies: number;
-  pointsEarned: number;
-}
-
-interface PairStats {
-  player1Id: number;
-  player2Id: number;
-  player1Name: string;
-  player2Name: string;
-  wins: number;
-  losses: number;
-  ties: number;
-  totalMatches: number;
-  winPercentage: number;
-  pointsEarned: number;
-}
+import Link from "next/link";
+import {
+  Team,
+  Player,
+  MatchResult,
+  PlayerStats,
+  PairStats,
+} from "@/app/lib/types";
 
 type ViewMode = "all" | "singles" | "doubles";
 type SortField = "points" | "winPercentage" | "pointsPerMatch";
@@ -523,7 +472,12 @@ export default function PlayerStatistics() {
               {playerStats.map((player) => (
                 <tr key={player.id} className="hover:bg-secondary/50 transition-colors">
                   <td className="px-3 sm:px-6 py-4 text-xs sm:text-sm font-medium whitespace-nowrap">
-                    {player.name}
+                    <Link
+                      href={`/player/${player.id}`}
+                      className="hover:underline"
+                    >
+                      {player.name}
+                    </Link>
                   </td>
                   <td className="px-3 sm:px-6 py-4 text-xs sm:text-sm text-center font-medium whitespace-nowrap">
                     {player.pointsEarned}
