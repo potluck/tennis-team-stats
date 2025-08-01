@@ -7,6 +7,12 @@ interface Team {
   name: string;
 }
 
+interface Player {
+  id: number;
+  name: string;
+  team_id: number;
+}
+
 interface MatchResult {
   id: number;
   team_match_id: number;
@@ -90,11 +96,40 @@ export default function PlayerStatistics() {
   const [playerStats, setPlayerStats] = useState<PlayerStats[]>([]);
   const [pairStats, setPairStats] = useState<PairStats[]>([]);
   const [teamName, setTeamName] = useState<string>("");
+  const [teamId, setTeamId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("all");
   const [sortField, setSortField] = useState<SortField>("points");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const [isAddingPlayer, setIsAddingPlayer] = useState(false);
+  const [newPlayerName, setNewPlayerName] = useState("");
+  const [addPlayerError, setAddPlayerError] = useState<string | null>(null);
+  const [forceUpdate, setForceUpdate] = useState(0);
+
+  const handleAddPlayer = async () => {
+    if (!newPlayerName.trim() || !teamId) return;
+    setAddPlayerError(null);
+
+    try {
+      const response = await fetch("/api/add-player", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newPlayerName, team_id: teamId }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to add player");
+      }
+
+      setNewPlayerName("");
+      setIsAddingPlayer(false);
+      setForceUpdate(prev => prev + 1); // Trigger a re-fetch
+    } catch (err) {
+      setAddPlayerError(err instanceof Error ? err.message : "Failed to add player");
+    }
+  };
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -107,30 +142,28 @@ export default function PlayerStatistics() {
     }
   };
 
-  const calculatePlayerStats = useCallback((results: MatchResult[]) => {
+  const calculatePlayerStats = useCallback((results: MatchResult[], allPlayers: Player[]) => {
     const statsMap = new Map<number, PlayerStats>();
 
-    // Initialize stats for each player
-    const initializePlayer = (id: number, name: string) => {
-      if (!statsMap.has(id)) {
-        statsMap.set(id, {
-          id,
-          name,
-          wins: 0,
-          losses: 0,
-          ties: 0,
-          totalMatches: 0,
-          winPercentage: 0,
-          singlesWins: 0,
-          singlesLosses: 0,
-          singlesTies: 0,
-          doublesWins: 0,
-          doublesLosses: 0,
-          doublesTies: 0,
-          pointsEarned: 0
-        });
-      }
-    };
+    // Initialize stats for all players on the team
+    allPlayers.forEach(player => {
+      statsMap.set(player.id, {
+        id: player.id,
+        name: player.name,
+        wins: 0,
+        losses: 0,
+        ties: 0,
+        totalMatches: 0,
+        winPercentage: 0,
+        singlesWins: 0,
+        singlesLosses: 0,
+        singlesTies: 0,
+        doublesWins: 0,
+        doublesLosses: 0,
+        doublesTies: 0,
+        pointsEarned: 0
+      });
+    });
 
     // Process each match result
     results.forEach((result) => {
@@ -141,9 +174,8 @@ export default function PlayerStatistics() {
       // Skip defaulted matches for win percentage calculation
       if (result.incomplete_reason === "default") return;
 
-      // Initialize player1
-      initializePlayer(result.player1, result.player1_name);
-      const player1Stats = statsMap.get(result.player1)!;
+      const player1Stats = statsMap.get(result.player1);
+      if (!player1Stats) return; // Player not in the team, skip
 
       // Update player1 stats
       player1Stats.totalMatches++;
@@ -176,8 +208,8 @@ export default function PlayerStatistics() {
 
       // If doubles match, update player2 stats
       if (!result.is_singles && result.player2 && result.player2_name) {
-        initializePlayer(result.player2, result.player2_name);
-        const player2Stats = statsMap.get(result.player2)!;
+        const player2Stats = statsMap.get(result.player2);
+        if (!player2Stats) return;
 
         player2Stats.totalMatches++;
         if (result.result === "win") {
@@ -216,8 +248,7 @@ export default function PlayerStatistics() {
             totalMatches,
             winPercentage: totalMatches > 0 ? (totalPoints / totalMatches) * 100 : 0
           };
-        })
-        .filter(stats => stats.totalMatches > 0),
+        }),
       sortField,
       sortDirection
     );
@@ -276,24 +307,27 @@ export default function PlayerStatistics() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const [matchesResponse, teamsResponse] = await Promise.all([
+        const [matchesResponse, teamsResponse, playersResponse] = await Promise.all([
           fetch("/api/get-match-results"),
-          fetch("/api/get-teams")
+          fetch("/api/get-teams"),
+          fetch("/api/get-players"),
         ]);
 
-        if (!matchesResponse.ok || !teamsResponse.ok) {
+        if (!matchesResponse.ok || !teamsResponse.ok || !playersResponse.ok) {
           throw new Error("Failed to fetch data");
         }
 
-        const [matchesData, teamsData] = await Promise.all([
+        const [matchesData, teamsData, playersData] = await Promise.all([
           matchesResponse.json(),
-          teamsResponse.json()
+          teamsResponse.json(),
+          playersResponse.json(),
         ]);
 
         const team = teamsData.find((t: Team) => t.id === 1);
         setTeamName(team?.name || "Team");
+        setTeamId(team?.id || null);
         
-        calculatePlayerStats(matchesData);
+        calculatePlayerStats(matchesData, playersData);
         calculatePairStats(matchesData);
       } catch (err) {
         setError(err instanceof Error ? err.message : "An error occurred");
@@ -303,7 +337,7 @@ export default function PlayerStatistics() {
     }
 
     fetchData();
-  }, [calculatePlayerStats, calculatePairStats]);
+  }, [calculatePlayerStats, calculatePairStats, forceUpdate]);
 
   const sortStats = <T extends { pointsEarned: number; winPercentage: number; totalMatches: number }>(
     stats: T[],
@@ -518,6 +552,48 @@ export default function PlayerStatistics() {
           </table>
         </div>
       )}
+      
+      <div className="mt-6">
+        {isAddingPlayer ? (
+          <div className="p-4 border border-input rounded-md">
+            <h3 className="text-lg font-medium mb-2">Add New Player</h3>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="text"
+                value={newPlayerName}
+                onChange={(e) => setNewPlayerName(e.target.value)}
+                placeholder="Player Name"
+                className="flex-grow px-3 py-2 bg-transparent border border-input rounded-md"
+                autoFocus
+              />
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={handleAddPlayer}
+                  className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90 transition-colors"
+                >
+                  Save Player
+                </button>
+                <button
+                  onClick={() => setIsAddingPlayer(false)}
+                  className="px-4 py-2 border border-input rounded-md hover:bg-accent/5 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+            {addPlayerError && (
+              <p className="text-destructive text-sm mt-2">{addPlayerError}</p>
+            )}
+          </div>
+        ) : (
+          <button
+            onClick={() => setIsAddingPlayer(true)}
+            className="w-full sm:w-auto px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm font-bold"
+          >
+            Add New Player
+          </button>
+        )}
+      </div>
     </div>
   );
 }

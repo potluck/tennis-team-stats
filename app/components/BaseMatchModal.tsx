@@ -887,17 +887,17 @@ export default function BaseMatchModal({
                   if (result.incomplete_reason) {
                     // For incomplete matches, use the manual result
                     switch (result.manualResult) {
-                      case "win": return "bg-emerald-50 border-emerald-200";
-                      case "loss": return "bg-red-50 border-red-200";
-                      case "tie": return "bg-gray-50 border-gray-200";
+                      case "win": return "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800";
+                      case "loss": return "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800";
+                      case "tie": return "bg-gray-50 dark:bg-gray-950/30 border-gray-200 dark:border-gray-700";
                       default: return "bg-background border-input";
                     }
                   } else {
                     // For complete matches, use the auto-determined result
                     switch (result.result) {
-                      case "win": return "bg-emerald-50 border-emerald-200";
-                      case "loss": return "bg-red-50 border-red-200";
-                      case "tie": return "bg-gray-50 border-gray-200";
+                      case "win": return "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800";
+                      case "loss": return "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800";
+                      case "tie": return "bg-gray-50 dark:bg-gray-950/30 border-gray-200 dark:border-gray-700";
                       default: return "bg-background border-input";
                     }
                   }
@@ -912,7 +912,7 @@ export default function BaseMatchModal({
                   {/* Player Selection */}
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     {players.length === 0 && !isLoadingPlayers && (
-                      <div className="col-span-2 mb-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
+                      <div className="col-span-2 mb-2 p-2 bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded text-sm text-yellow-800 dark:text-yellow-200">
                         ⚠️ Unable to load players list. You can still edit scores and other data.
                       </div>
                     )}
@@ -1112,11 +1112,11 @@ export default function BaseMatchModal({
                       <div
                         className={`w-full p-3 border rounded-md ${
                           getMatchResult(result) === "win"
-                            ? "bg-emerald-100 border-emerald-300 text-emerald-800"
+                            ? "bg-emerald-100 dark:bg-emerald-950/50 border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-200"
                             : getMatchResult(result) === "loss"
-                            ? "bg-red-100 border-red-300 text-red-800"
+                            ? "bg-red-100 dark:bg-red-950/50 border-red-300 dark:border-red-700 text-red-800 dark:text-red-200"
                             : getMatchResult(result) === "tie"
-                            ? "bg-gray-100 border-gray-300 text-gray-800"
+                            ? "bg-gray-100 dark:bg-gray-950/50 border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200"
                             : "bg-accent/10 border-accent text-accent-foreground"
                         }`}
                       >

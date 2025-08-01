@@ -219,20 +219,6 @@ export default function TeamMatches({ onAddMatch, onMatchUpdate }: TeamMatchesPr
   const getCompactMatchView = (match: TeamMatch) => {
     const result = getMatchResult(match);
     
-    const getPositionLabel = (pos: PositionResult) => {
-      const prefix = pos.is_singles ? "S" : "D";
-      return `${prefix}${pos.pos}`;
-    };
-
-    const getPositionColor = (pos: PositionResult) => {
-      switch (pos.result) {
-        case "win": return "text-emerald-600 font-semibold";
-        case "loss": return "text-red-600 font-semibold";
-        case "tie": return "text-gray-600 font-semibold";
-        default: return "text-gray-500 font-semibold";
-      }
-    };
-    
     return (
       <div className="grid grid-cols-3 items-center w-full p-4">
         <div className="flex items-center gap-3">
