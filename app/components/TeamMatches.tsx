@@ -118,7 +118,7 @@ export default function TeamMatches({ onAddMatch, onMatchUpdate }: TeamMatchesPr
     };
 
     return (
-      <span className={`text-sm sm:text-lg font-bold ml-0 ${textColorClass}`}>
+      <span className={`text-sm font-bold ml-0 ${textColorClass} whitespace-nowrap`}>
         ({formatScore(ourPoints)} - {formatScore(theirPoints)})
       </span>
     );
@@ -244,32 +244,7 @@ export default function TeamMatches({ onAddMatch, onMatchUpdate }: TeamMatchesPr
             <div className="text-xs text-muted-foreground">{formatMatchDate(match.match_date)}</div>
           </div>
         </div>
-        <div className="flex justify-center">
-          <div className="grid grid-cols-2 grid-rows-3 grid-flow-col gap-2 max-w-xs">
-            {match.position_results
-              .filter(pos => pos.is_singles)
-              .map((pos, index) => (
-                <div
-                  key={`singles-${index}`}
-                  className={`text-xs ${getPositionColor(pos)}`}
-                  title={`${getPositionLabel(pos)}: ${pos.result}`}
-                >
-                  {getPositionLabel(pos)}
-                </div>
-              ))}
-            {match.position_results
-              .filter(pos => !pos.is_singles)
-              .map((pos, index) => (
-                <div
-                  key={`doubles-${index}`}
-                  className={`text-xs ${getPositionColor(pos)}`}
-                  title={`${getPositionLabel(pos)}: ${pos.result}`}
-                >
-                  {getPositionLabel(pos)}
-                </div>
-              ))}
-          </div>
-        </div>
+        <div></div>
         <div className="flex items-center justify-end gap-3">
           <div className="text-right">
             <div className="text-sm font-medium">{getScoreDisplay(match)}</div>
@@ -277,28 +252,8 @@ export default function TeamMatches({ onAddMatch, onMatchUpdate }: TeamMatchesPr
           <button
             onClick={(e) => {
               e.stopPropagation();
-              setEditingMatch(match.id);
+              toggleMatchExpansion(match.id);
             }}
-            className="p-1 text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-md transition-colors"
-            title="Edit match scores"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
-              <path d="m15 5 4 4"/>
-            </svg>
-          </button>
-          <button
-            onClick={() => toggleMatchExpansion(match.id)}
             className="p-1 text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-md transition-colors"
             title="Expand match details"
           >
