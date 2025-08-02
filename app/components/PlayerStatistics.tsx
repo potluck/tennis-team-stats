@@ -518,6 +518,11 @@ export default function PlayerStatistics() {
                 type="text"
                 value={newPlayerName}
                 onChange={(e) => setNewPlayerName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleAddPlayer();
+                  }
+                }}
                 placeholder="Player Name"
                 className="flex-grow px-3 py-2 bg-transparent border border-input rounded-md"
                 autoFocus
