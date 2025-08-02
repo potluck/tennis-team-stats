@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { unstable_noStore as noStore } from "next/cache";
 import Link from "next/link";
 import {
   Team,
@@ -42,6 +43,7 @@ function SortIcon({ direction }: { direction: SortDirection }) {
 }
 
 export default function PlayerStatistics() {
+  noStore();
   const [playerStats, setPlayerStats] = useState<PlayerStats[]>([]);
   const [pairStats, setPairStats] = useState<PairStats[]>([]);
   const [teamName, setTeamName] = useState<string>("");
@@ -74,7 +76,7 @@ export default function PlayerStatistics() {
 
       setNewPlayerName("");
       setIsAddingPlayer(false);
-      setForceUpdate(prev => prev + 1); // Trigger a re-fetch
+      setForceUpdate(prev => prev + 1);
     } catch (err) {
       setAddPlayerError(err instanceof Error ? err.message : "Failed to add player");
     }
@@ -257,9 +259,9 @@ export default function PlayerStatistics() {
     async function fetchData() {
       try {
         const [matchesResponse, teamsResponse, playersResponse] = await Promise.all([
-          fetch("/api/get-match-results"),
-          fetch("/api/get-teams"),
-          fetch("/api/get-players"),
+          fetch("/api/get-match-results", { cache: "no-store" }),
+          fetch("/api/get-teams", { cache: "no-store" }),
+          fetch("/api/get-players", { cache: "no-store" }),
         ]);
 
         if (!matchesResponse.ok || !teamsResponse.ok || !playersResponse.ok) {

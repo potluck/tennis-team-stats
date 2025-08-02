@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Player,
   MatchResult,
@@ -28,6 +29,31 @@ const PlayerProfile = ({ params }: PlayerProfileProps) => {
   const [matchHistory, setMatchHistory] = useState<MatchResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const router = useRouter();
+
+  const handleDelete = async () => {
+    if (!player) return;
+
+    try {
+      const response = await fetch("/api/delete-player", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: player.id }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to delete player");
+      }
+
+      router.push("/");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete player");
+      setShowConfirm(false);
+    }
+  };
 
   useEffect(() => {
     async function fetchData() {
@@ -35,8 +61,8 @@ const PlayerProfile = ({ params }: PlayerProfileProps) => {
         const playerId = parseInt(params.playerId, 10);
 
         const [playersResponse, matchesResponse] = await Promise.all([
-          fetch("/api/get-players"),
-          fetch("/api/get-match-results"),
+          fetch("/api/get-players", { cache: "no-store" }),
+          fetch("/api/get-match-results", { cache: "no-store" }),
         ]);
 
         if (!playersResponse.ok || !matchesResponse.ok) {
@@ -171,6 +197,31 @@ const PlayerProfile = ({ params }: PlayerProfileProps) => {
         <h1 className="text-3xl sm:text-4xl font-bold text-primary">{player.name}</h1>
       </div>
 
+      {showConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-background rounded-lg p-6 shadow-xl max-w-sm w-full">
+            <h3 className="text-lg font-bold mb-4">Confirm Deletion</h3>
+            <p className="text-muted-foreground mb-6">
+              Are you sure you want to delete {player.name}? This will also remove them from all match histories. This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-4">
+              <button
+                onClick={() => setShowConfirm(false)}
+                className="px-4 py-2 border border-input rounded-md hover:bg-accent/5 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                className="px-4 py-2 bg-destructive text-destructive-foreground rounded-md hover:bg-destructive/90 transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div className="bg-background text-foreground rounded-lg border border-border p-6">
           <h2 className="text-2xl font-semibold mb-4">Overall Stats</h2>
@@ -230,6 +281,15 @@ const PlayerProfile = ({ params }: PlayerProfileProps) => {
             </tbody>
           </table>
         </div>
+      </div>
+
+      <div className="mt-8 pt-6 border-t border-border">
+        <button
+          onClick={() => setShowConfirm(true)}
+          className="px-4 py-2 bg-destructive text-destructive-foreground rounded-md hover:bg-destructive/90 transition-colors text-sm font-bold"
+        >
+          Delete Player
+        </button>
       </div>
     </div>
   );
