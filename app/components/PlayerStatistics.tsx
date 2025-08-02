@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { unstable_noStore as noStore } from "next/cache";
 import Link from "next/link";
 import {
@@ -57,29 +57,70 @@ export default function PlayerStatistics() {
   const [newPlayerName, setNewPlayerName] = useState("");
   const [addPlayerError, setAddPlayerError] = useState<string | null>(null);
   const [forceUpdate, setForceUpdate] = useState(0);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  }, [newPlayerName]);
 
   const handleAddPlayer = async () => {
-    if (!newPlayerName.trim() || !teamId) return;
+    const trimmedValue = newPlayerName.trim();
+    if (!trimmedValue || !teamId) return;
+
     setAddPlayerError(null);
 
-    try {
-      const response = await fetch("/api/add-player", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newPlayerName, team_id: teamId }),
-      });
+    const playerNames = trimmedValue.split('\n').map(name => name.trim()).filter(Boolean);
+    if (playerNames.length === 0) return;
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to add player");
+    const results = await Promise.all(playerNames.map(async (name) => {
+      try {
+        const response = await fetch("/api/add-player", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: name, team_id: teamId }),
+        });
+        if (!response.ok) {
+          const errorData = await response.json();
+          return { success: false, name, error: errorData.error || `Request failed` };
+        }
+        return { success: true, name, error: null };
+      } catch (err) {
+        return { success: false, name, error: err instanceof Error ? err.message : 'Unknown error' };
       }
+    }));
 
-      setNewPlayerName("");
-      setIsAddingPlayer(false);
-      setForceUpdate(prev => prev + 1);
-    } catch (err) {
-      setAddPlayerError(err instanceof Error ? err.message : "Failed to add player");
+    const failed = results.filter(r => !r.success);
+    const succeeded = results.filter(r => r.success);
+
+    if (succeeded.length > 0) {
+      setForceUpdate(p => p + 1);
     }
+
+    if (failed.length > 0) {
+      const errorMessage = failed.map(f => `• ${f.name}: ${f.error}`).join('\n');
+      setAddPlayerError(errorMessage);
+      const failedNames = failed.map(f => f.name).join('\n');
+      setNewPlayerName(failedNames);
+    } else {
+      setNewPlayerName('');
+      setAddPlayerError(null);
+      setIsAddingPlayer(false);
+    }
+  };
+
+  const handleBeginAddPlayer = () => {
+    setNewPlayerName('');
+    setAddPlayerError(null);
+    setIsAddingPlayer(true);
+  };
+
+  const handleCancelAddPlayer = () => {
+    setNewPlayerName('');
+    setAddPlayerError(null);
+    setIsAddingPlayer(false);
   };
 
   const handleSort = (field: SortField) => {
@@ -512,19 +553,15 @@ export default function PlayerStatistics() {
       <div className="mt-6">
         {isAddingPlayer ? (
           <div className="p-4 border border-input rounded-md">
-            <h3 className="text-lg font-medium mb-2">Add New Player</h3>
+            <h3 className="text-lg font-medium mb-2">Add New Player(s)</h3>
             <div className="flex flex-col sm:flex-row gap-2">
-              <input
-                type="text"
+              <textarea
+                ref={textareaRef}
                 value={newPlayerName}
                 onChange={(e) => setNewPlayerName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    handleAddPlayer();
-                  }
-                }}
-                placeholder="Player Name"
-                className="flex-grow px-3 py-2 bg-transparent border border-input rounded-md"
+                placeholder="Player Name(s) - one per line"
+                className="flex-grow px-3 py-2 bg-transparent border border-input rounded-md resize-none overflow-hidden"
+                rows={1}
                 autoFocus
               />
               <div className="flex gap-2 justify-end">
@@ -532,10 +569,10 @@ export default function PlayerStatistics() {
                   onClick={handleAddPlayer}
                   className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90 transition-colors"
                 >
-                  Save Player
+                  Save Player(s)
                 </button>
                 <button
-                  onClick={() => setIsAddingPlayer(false)}
+                  onClick={handleCancelAddPlayer}
                   className="px-4 py-2 border border-input rounded-md hover:bg-accent/5 transition-colors"
                 >
                   Cancel
@@ -543,12 +580,12 @@ export default function PlayerStatistics() {
               </div>
             </div>
             {addPlayerError && (
-              <p className="text-destructive text-sm mt-2">{addPlayerError}</p>
+              <p className="text-destructive text-sm mt-2 whitespace-pre-wrap">{addPlayerError}</p>
             )}
           </div>
         ) : (
           <button
-            onClick={() => setIsAddingPlayer(true)}
+            onClick={handleBeginAddPlayer}
             className="w-full sm:w-auto px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm font-bold"
           >
             Add New Player
